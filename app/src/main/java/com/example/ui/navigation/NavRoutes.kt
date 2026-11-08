@@ -1,0 +1,27 @@
+package com.example.ui.navigation
+
+sealed class Screen(val route: String) {
+    data object Splash : Screen("splash")
+    data object Onboarding : Screen("onboarding")
+    data object Dashboard : Screen("dashboard")
+    data object Chat : Screen("chat")
+    data object VoiceHud : Screen("voice_hud")
+    data object Notes : Screen("notes")
+    data object Tasks : Screen("tasks")
+    data object History : Screen("history")
+    data object Settings : Screen("settings")
+    data object Personalization : Screen("personalization")
+    data object AiProviders : Screen("ai_providers")
+    data object AiAgents : Screen("ai_agents")
+    data object Workspaces : Screen("workspaces")
+    data object Skills : Screen("skills")
+    data object Routines : Screen("routines")
+    data object Diagnostics : Screen("diagnostics")
+    data object Usage : Screen("usage")
+    data object Sync : Screen("sync")
+    data object Notifications : Screen("notifications")
+    data object Research : Screen("research")
+    data object Privacy : Screen("privacy")
+    data object About : Screen("about")
+    data object GitHubSkills : Screen("github_skills")
+}

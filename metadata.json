@@ -1,0 +1,6 @@
+{
+  "name": "JARVIS",
+  "description": "Personal AI Assistant for Android with voice-first interaction, Bangla language support, and device action engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

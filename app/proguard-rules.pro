@@ -1,71 +1,21 @@
-# Open Jarvis ProGuard Rules (R8 Full Mode)
+# Add project specific ProGuard rules here.
+# You can control the set of applied configuration files using the
+# proguardFiles setting in build.gradle.
+#
+# For more details, see
+#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Keep Room entities
--keep class com.openjarvis.graphify.nodes.** { *; }
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
--keep @androidx.room.Dao interface *
--keepclassmembers class * {
-    @androidx.room.* <methods>;
-}
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
 
-# Keep AccessibilityService
--keep class com.openjarvis.accessibility.JarvisAccessibilityService { *; }
--keep class * extends android.accessibilityservice.AccessibilityService
--keep class * extends android.view.accessibility.AccessibilityNodeInfo
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
 
-# Keep Graphify
--keep class com.openjarvis.graphify.** { *; }
-
-# Keep model classes
--keep class com.openjarvis.** { *; }
-
-# Coroutines
--keepclassmembers class kotlinx.coroutines.** { *; }
--keepclassmembernames class kotlinx.** {
-    volatile <fields>;
-}
-
-# Keep Compose
--keep class androidx.compose.** { *; }
--dontwarn androidx.compose.**
-
-# OkHttp
--dontwarn okhttp3.**
--dontwarn okio.**
--keep class okhttp3.** { *; }
--keep class okio.** { *; }
--keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
-
-# MLKit
--keep class com.google.mlkit.** { *; }
--dontwarn com.google.mlkit.**
-
-# Security Crypto
--keep class androidx.security.crypto.** { *; }
-
-# Work Manager
--keep class androidx.work.** { *; }
-
-# Kotlin Serialization
--keepattributes *Annotation*, InnerClasses
--dontnote kotlinx.serialization.AnnotationsKt
--keepclassmembers class kotlinx.serialization.json.** {
-    *** Companion;
-}
--keepclasseswithmembers class kotlinx.serialization.json.** {
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# R8 optimizations
--allowaccessmodification
--repackageclasses
--mergeinterfacesaggressively
--optimizationpasses 5
-
-# Remove logging in release
--assumenosideeffects class android.util.Log {
-    public static int v(...);
-    public static int d(...);
-    public static int i(...);
-}
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile

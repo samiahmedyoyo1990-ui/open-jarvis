@@ -1,0 +1,1446 @@
+JARVIS ULTIMATE — MASTER DEVELOPMENT & IMPLEMENTATION PROMPT
+
+Complete Android AI Assistant Transformation
+
+You are now acting as a complete senior engineering team consisting of:
+
+- Principal Android Architect
+- Senior Kotlin/Java Developer
+- AI Systems Architect
+- Multi-Agent AI Engineer
+- API Integration Engineer
+- Android UI/UX Designer
+- Cybersecurity Engineer
+- Backend and Cloud Engineer
+- Voice Recognition Engineer
+- Automation Engineer
+- Software Testing and QA Engineer
+- DevOps and GitHub Actions Engineer
+
+Your mission is to inspect, upgrade, integrate, debug, and complete my existing Android project into a sophisticated, modular, extensible, voice-enabled personal AI assistant named:
+
+JARVIS
+
+This is an existing application, not a request to create an unrelated demo project.
+
+You must work directly with my current repository.
+
+GitHub Repository:
+https://github.com/samiahmedyoyo1990-ui/open-jarvis
+
+The project must retain its existing identity, useful functionality, and working features while being upgraded with the systems described below.
+
+---
+
+PART 1 — NON-NEGOTIABLE DEVELOPMENT RULES
+
+Before implementing anything:
+
+1. Inspect the complete repository structure.
+2. Identify its actual programming language and Android framework.
+3. Inspect existing application architecture.
+4. Inspect Gradle configuration and dependencies.
+5. Inspect AndroidManifest.xml.
+6. Inspect existing AI API implementations.
+7. Inspect voice recognition and text-to-speech implementation.
+8. Inspect background services and permissions.
+9. Inspect navigation, UI components, and settings.
+10. Inspect database and existing storage.
+11. Inspect GitHub Actions and build configuration.
+12. Identify existing bugs, incomplete implementations, and duplicated code.
+
+Do not blindly replace existing files.
+
+Do not assume the repository is identical to a previous version.
+
+Do not create a second application.
+
+Do not remove working features just to simplify implementation.
+
+Do not introduce unnecessary dependencies.
+
+Do not overwrite user work or modify remote Git history without authorization.
+
+Do not stop after writing a development plan.
+
+You must perform actual implementation using the coding environment and repository access available to you.
+
+If a feature requires external credentials, a backend, hardware, or permission that is unavailable, implement its supported architecture and clearly document the remaining setup requirement.
+
+Never fabricate completed functionality, successful tests, or successful builds.
+
+---
+
+PART 2 — THE COMPLETE JARVIS SYSTEM ARCHITECTURE
+
+Build a unified modular architecture in which all systems communicate through clearly defined interfaces.
+
+The application must not become a collection of disconnected features.
+
+Establish a central JARVIS Core responsible for:
+
+- AI request orchestration.
+- Provider management.
+- Voice interaction.
+- Memory access.
+- Intent recognition.
+- Permission management.
+- Tool execution.
+- Agent coordination.
+- Response generation.
+- Task execution.
+- Security enforcement.
+- Diagnostic monitoring.
+
+Every subsystem must have a clearly defined responsibility.
+
+Use modular architecture and appropriate dependency injection.
+
+Avoid circular dependencies and duplicated business logic.
+
+SYSTEM 01 — UNIVERSAL AI BRAIN
+
+Create a central AI orchestration engine.
+
+This will act as the primary intelligence layer of JARVIS.
+
+Requirements:
+
+- Centralized AI request routing.
+- Configurable provider selection.
+- Model selection.
+- Conversation context.
+- System instructions.
+- Streaming response support.
+- Tool and skill integration.
+- Context management.
+- Provider-specific request adapters.
+- Error handling.
+- Request cancellation.
+- Response normalization.
+
+All user requests, whether typed or spoken, must eventually reach the same orchestration architecture.
+
+The central AI engine must not be permanently tied to one AI provider.
+
+SYSTEM 02 — UNIVERSAL BYOK API PROVIDER MANAGER
+
+Implement a complete Bring Your Own Key system.
+
+The user must be able to configure AI providers directly from inside the installed JARVIS application.
+
+Initial providers:
+
+1. Google Gemini.
+2. OpenRouter.
+
+Architecture must permit additional providers later.
+
+Each provider needs independent:
+
+- API key.
+- Base URL, where applicable.
+- Model ID.
+- Authentication method.
+- Provider configuration.
+- Connection status.
+- Usage information, where available.
+
+Features:
+
+- Add provider.
+- Edit provider.
+- Delete provider.
+- Replace API key.
+- Show and hide API key.
+- Test connection.
+- Discover available models.
+- Manually enter model IDs.
+- Select default provider.
+- Select default model.
+- Refresh model list.
+- Manage multiple provider configurations.
+- Switch active provider without restarting the application.
+
+Gemini and OpenRouter must never share credentials accidentally.
+
+Use the current official documentation when implementing provider APIs.
+
+Gemini:
+https://ai.google.dev/gemini-api/docs
+
+OpenRouter:
+https://openrouter.ai/docs
+
+Do not assume that old endpoint examples are still valid.
+
+Respect each provider's current authentication requirements, model capabilities, rate limits, and API formats.
+
+Secure Credential Storage
+
+Implement:
+
+- Android Keystore-backed encryption.
+- Encrypted local API key storage.
+- Masked credentials in the UI.
+- Secure deletion.
+- No plaintext credentials in logs.
+- No hardcoded API keys.
+- No API keys committed to GitHub.
+- No credential leakage into analytics.
+- No accidental API key exposure through crash reports.
+
+Do not claim that locally stored API keys are completely inaccessible to a compromised or reverse-engineered device.
+
+If cloud access is introduced, never silently transmit user credentials to an external backend.
+
+Provider switching
+
+Changing the selected AI provider must automatically load its own:
+
+- API credentials.
+- Model.
+- Endpoint.
+- Authentication.
+- Provider settings.
+
+All new requests must use the selected configuration.
+
+Add an optional backup provider, disabled by default.
+
+Never silently switch the user's AI provider or incur unexpected additional costs.
+
+---
+
+PART 3 — CORE PERSONAL ASSISTANT SYSTEMS
+
+SYSTEM 03 — SMART VOICE & WAKE WORD ENGINE
+
+Create a complete voice interaction system.
+
+Requirements:
+
+- Speech-to-text.
+- Text-to-speech.
+- Bangla voice recognition where supported.
+- English voice recognition.
+- Language selection.
+- Voice response configuration.
+- Speech interruption.
+- Continuous conversation mode.
+- Listening state.
+- Thinking state.
+- Speaking state.
+- Microphone permission management.
+- Voice error recovery.
+
+Implement an optional wake-word system using a suitable supported local wake-word implementation.
+
+The user must be able to enable or disable wake-word functionality.
+
+Background microphone operation must:
+
+- Follow Android foreground-service rules.
+- Respect runtime permissions.
+- Show required system notifications.
+- Respect Android version and manufacturer restrictions.
+- Stop listening when disabled.
+- Never secretly record or transmit microphone audio.
+
+JARVIS Voice Animation
+
+Create or improve a premium futuristic voice interface.
+
+Required states:
+
+1. Idle.
+2. Listening.
+3. Processing.
+4. Thinking.
+5. Speaking.
+6. Error.
+7. Offline.
+
+Use smooth animated sound waves, glowing circular visualizers, reactive effects, and synchronized voice states.
+
+Animations should be lightweight and responsive.
+
+Do not use fake animation states disconnected from real microphone or AI activity.
+
+Maintain the existing JARVIS interface identity.
+
+SYSTEM 04 — SMART MEMORY ENGINE
+
+Create a persistent, user-controlled memory system.
+
+Capabilities:
+
+- Remember approved user preferences.
+- Save relevant instructions.
+- Retrieve relevant conversation context.
+- Maintain conversation summaries.
+- Store user-created information.
+- Separate short-term and long-term memory.
+- Categorize memories.
+- Search stored memories.
+- Edit memories.
+- Delete individual memories.
+- Clear all memories.
+
+Memory must be user-controllable.
+
+Do not automatically classify every conversation as permanent memory.
+
+Sensitive information must not be saved without explicit user authorization.
+
+Memory must be independent of the currently selected AI provider.
+
+Switching Gemini and OpenRouter must not erase the user's saved JARVIS memory.
+
+SYSTEM 05 — ANDROID PHONE CONTROL ENGINE
+
+Allow JARVIS to operate supported Android features through official Android APIs and user-authorized integrations.
+
+Capabilities may include:
+
+- Open installed applications.
+- Launch supported system settings.
+- Search installed apps.
+- Start supported activities.
+- Toggle supported controls when permitted.
+- Open selected contacts.
+- Initiate a phone call after confirmation.
+- Prepare a message for user review.
+- Navigate to supported destinations.
+- Display device information.
+
+Use Android intents and public APIs where possible.
+
+Accessibility services must not be abused or used to bypass Android security protections.
+
+For sensitive actions, request user confirmation.
+
+Never secretly send messages, place calls, make purchases, or access private app data.
+
+Clearly explain when an action cannot be performed due to Android restrictions.
+
+SYSTEM 06 — NOTIFICATION INTELLIGENCE ENGINE
+
+Implement optional notification reading and analysis.
+
+Use Android NotificationListenerService only after the user explicitly grants permission.
+
+Capabilities:
+
+- Read authorized notifications.
+- Summarize selected notifications.
+- Read notifications aloud.
+- Identify important messages.
+- Generate suggested replies.
+- Filter notifications by application.
+- Configure excluded applications.
+- Enable or disable notification reading.
+
+Protect sensitive notification content.
+
+Do not upload notification content to an AI provider without clear user control and awareness.
+
+Do not bypass app notification privacy restrictions.
+
+SYSTEM 07 — AUTOMATION & ROUTINE ENGINE
+
+Create a configurable automation framework.
+
+Support user-created routines such as:
+
+- Good Morning.
+- Study Mode.
+- Work Mode.
+- Night Mode.
+- Custom Voice Routine.
+- App Launch Routine.
+- Time-Based Routine.
+- Reminder-Based Routine.
+
+Features:
+
+- Routine creator.
+- Trigger selection.
+- Action selection.
+- Execution history.
+- Enable/disable routine.
+- Editing and deletion.
+- Permission validation.
+- Failure reporting.
+
+Use WorkManager, AlarmManager, or suitable Android mechanisms according to the required behavior and Android restrictions.
+
+No hidden monitoring or unauthorized actions.
+
+SYSTEM 08 — LIVE WEB SEARCH & RESEARCH ENGINE
+
+Integrate a modular web research interface.
+
+Capabilities:
+
+- Search current information.
+- Retrieve supported webpages.
+- Summarize articles.
+- Compare multiple sources.
+- Extract important facts.
+- Provide source links.
+- Distinguish current information from model knowledge.
+- Support research mode.
+
+Create a provider abstraction for search functionality.
+
+Do not assume that an AI model's normal chat API automatically provides unrestricted web access.
+
+Use a genuine supported search integration.
+
+Make search integrations independently configurable.
+
+Clearly communicate when web access is unavailable.
+
+Do not fabricate citations.
+
+SYSTEM 09 — FILE & DOCUMENT INTELLIGENCE
+
+Allow users to provide files to JARVIS through Android's Storage Access Framework.
+
+Support formats according to available parsers and model capabilities, such as:
+
+- PDF.
+- TXT.
+- DOCX.
+- Supported images.
+- Other supported document formats.
+
+Capabilities:
+
+- Document summarization.
+- Document question-answering.
+- Text extraction.
+- Notes extraction.
+- Document analysis.
+- File search within user-selected content.
+- Document comparison where supported.
+
+Do not request unrestricted file-system access unnecessarily.
+
+Handle large files safely.
+
+Do not upload documents without informing the user about external AI processing.
+
+SYSTEM 10 — VISION INTELLIGENCE
+
+Implement an image understanding interface.
+
+Allow the user to:
+
+- Select an image.
+- Capture an image using the camera.
+- Send it to a vision-capable configured provider.
+- Ask questions about the image.
+- Extract visible text.
+- Analyze supported visual information.
+- Receive descriptions and explanations.
+
+Check model vision capabilities before sending requests.
+
+Do not assume all models support image input.
+
+Use appropriate image permissions and Android camera APIs.
+
+SYSTEM 11 — PERSONAL TASK MANAGER
+
+Create a built-in task management module.
+
+Features:
+
+- Add task through text.
+- Add task through voice.
+- Edit task.
+- Delete task.
+- Task categories.
+- Due dates.
+- Reminder configuration.
+- Priority.
+- Completion status.
+- Daily overview.
+- Task history.
+- Task search.
+
+Persist tasks locally.
+
+Use Android notification and scheduling capabilities responsibly.
+
+SYSTEM 12 — OFFLINE INTELLIGENCE
+
+Implement useful local functionality when the internet connection is unavailable.
+
+Offline features should include:
+
+- App launching.
+- Local notes.
+- Saved memories.
+- Basic supported device commands.
+- Local task management.
+- Cached configuration.
+- Basic local calculations.
+- Offline status detection.
+
+If a cloud AI provider is unavailable, clearly tell the user.
+
+Do not pretend cloud AI responses are being generated offline.
+
+An optional local language model may be integrated if device resources and dependencies permit.
+
+Do not make local model functionality mandatory.
+
+SYSTEM 13 — PRIVACY & SECURITY CENTER
+
+Create a dedicated privacy dashboard.
+
+Include:
+
+- API key management.
+- Permission overview.
+- Microphone status.
+- Camera permission status.
+- Notification access status.
+- Data storage information.
+- Memory management.
+- Conversation deletion.
+- Export and deletion controls.
+- Privacy settings.
+- Diagnostic log controls.
+- External data processing transparency.
+
+Provide an understandable explanation of which data stays locally and which information may be transmitted to configured external services.
+
+Apply least-privilege permission principles.
+
+---
+
+PART 4 — ADVANCED EXPANSION SYSTEMS
+
+SYSTEM 14 — MULTI-AGENT COLLABORATION ENGINE
+
+Build a coordinated multi-agent architecture.
+
+Main JARVIS acts as the orchestrator.
+
+Create specialized agents such as:
+
+1. Research Agent.
+2. Analysis Agent.
+3. Coding Agent.
+4. Reviewer Agent.
+5. Planning Agent.
+6. Creative Agent.
+7. Verification Agent.
+
+The orchestrator should:
+
+- Understand the user's request.
+- Decide whether multiple agents are necessary.
+- Assign suitable tasks.
+- Manage task dependencies.
+- Collect agent results.
+- Identify contradictions.
+- Verify relevant claims.
+- Produce one coherent final response.
+
+Do not launch unnecessary agents for simple questions.
+
+Requirements:
+
+- Configurable agent roles.
+- Agent-specific instructions.
+- Model selection where supported.
+- Provider selection.
+- Maximum concurrency.
+- Token and budget controls.
+- Timeout handling.
+- Cancellation support.
+- Error recovery.
+- Execution history.
+
+Agent roles must operate through the Universal AI Engine.
+
+Do not assume every model can run simultaneously or perform every tool action.
+
+Never let agents independently execute sensitive phone or external actions without the main permission system.
+
+SYSTEM 15 — AI SKILLS & PLUGIN MARKETPLACE
+
+Create a modular skill management system.
+
+Initial examples:
+
+- Calculator Skill.
+- Translation Skill.
+- Research Skill.
+- Coding Assistant Skill.
+- Weather Skill.
+- File Analysis Skill.
+- Custom Skill.
+
+Capabilities:
+
+- Skill directory.
+- Skill description.
+- Install.
+- Enable.
+- Disable.
+- Uninstall.
+- Skill settings.
+- Permission declarations.
+- Version information.
+- Compatibility checking.
+
+Design an extension architecture where new skills can be added without rewriting the main AI engine.
+
+Plugin security
+
+Never execute arbitrary downloaded code.
+
+Do not dynamically load untrusted DEX, executable scripts, or unrestricted plugins.
+
+Use a controlled skill manifest and an allowlisted capability system.
+
+Every skill must request only the permissions it needs.
+
+External skill installation must require user approval.
+
+SYSTEM 16 — AI FACT VERIFICATION ENGINE
+
+Build an independent fact-checking layer.
+
+Capabilities:
+
+- Identify verifiable factual claims.
+- Search for supporting sources.
+- Compare multiple independent sources.
+- Detect contradictions.
+- Identify outdated information.
+- Distinguish fact from opinion.
+- Generate a verification summary.
+- Attach relevant source links.
+
+Where appropriate, provide labels such as:
+
+- Verified.
+- Partially Verified.
+- Conflicting Sources.
+- Not Enough Evidence.
+
+Do not automatically label information as verified merely because an AI agent agrees with another agent.
+
+Verification must be evidence-based.
+
+Do not fabricate source links or citations.
+
+For facts that cannot be verified, communicate uncertainty.
+
+SYSTEM 17 — SHARE-TO-JARVIS INTEGRATION
+
+Implement Android sharing integration.
+
+Add supported ACTION_SEND and ACTION_SEND_MULTIPLE intent handling.
+
+Allow supported external applications to share:
+
+- Plain text.
+- Links.
+- Images.
+- PDFs.
+- Supported documents.
+
+When a shared item opens JARVIS:
+
+1. Identify the content type.
+2. Validate the content.
+3. Display a preview where appropriate.
+4. Ask what the user wants to do if the intent is unclear.
+5. Pass the selected content to the relevant intelligence module.
+
+Respect Android URI permissions.
+
+Handle unsupported file types safely.
+
+Do not automatically upload shared content.
+
+SYSTEM 18 — AI PROJECT WORKSPACE
+
+Create independent workspaces.
+
+Suggested default workspaces:
+
+- Personal.
+- Business.
+- Coding.
+- Study.
+- Creative.
+- Research.
+
+Features:
+
+- Create workspace.
+- Edit workspace.
+- Delete workspace.
+- Set workspace instructions.
+- Independent chat history.
+- Context separation.
+- Workspace memory.
+- Attach files where supported.
+- Search within workspace.
+- Workspace-specific AI preferences.
+
+Allow custom workspaces.
+
+Switching workspaces must not accidentally mix private conversations or memory.
+
+SYSTEM 19 — SELF-DIAGNOSTIC & SAFE REPAIR ENGINE
+
+Build a diagnostic system that can detect application problems.
+
+Monitor appropriate information such as:
+
+- API connection status.
+- Network availability.
+- Provider configuration validity.
+- Permission status.
+- Background service status.
+- Database health.
+- Storage availability.
+- Model availability.
+- Application error categories.
+- Build or update information where available.
+
+Create a diagnostic dashboard.
+
+Allow the user to run manual diagnostics.
+
+Provide clear repair recommendations.
+
+Where a safe, reversible repair is possible, offer it with appropriate user approval.
+
+Never:
+
+- Secretly change security settings.
+- Download and execute arbitrary repair scripts.
+- Modify the installed application binary.
+- Hide errors.
+- Delete user information to make diagnostics pass.
+
+Include exportable, redacted diagnostic reports.
+
+SYSTEM 20 — AI PERSONALITY STUDIO
+
+Create a dedicated personality configuration module.
+
+Allow customization of:
+
+- Assistant name.
+- Greeting style.
+- Response tone.
+- Response length.
+- Language preference.
+- Voice selection.
+- Speech speed where supported.
+- Voice behavior.
+- System instructions.
+- Conversation style.
+
+Include optional built-in profiles:
+
+- Professional.
+- Friendly.
+- Technical.
+- Minimal.
+- Creative.
+- Custom.
+
+The default identity must remain JARVIS.
+
+Personality changes must not bypass security or permission controls.
+
+SYSTEM 21 — AI USAGE & COST INTELLIGENCE
+
+Create an API usage dashboard.
+
+Where actual data is available, display:
+
+- Request count.
+- Token usage.
+- Provider-wise usage.
+- Model-wise usage.
+- Estimated cost.
+- Usage history.
+- Provider errors.
+- Request duration.
+- Optional usage warnings.
+
+Respect provider-specific pricing and usage-reporting capabilities.
+
+If cost information is unavailable, clearly label the value as unavailable or estimated.
+
+Never invent exact API billing figures.
+
+Allow the user to configure optional usage alerts and request limits.
+
+Prevent uncontrolled agent loops or excessive concurrent API requests.
+
+SYSTEM 22 — ENCRYPTED MULTI-DEVICE SYNCHRONIZATION
+
+Design an optional multi-device synchronization layer.
+
+Support eligible data such as:
+
+- User settings.
+- Selected memories.
+- Workspace metadata.
+- Conversation history where enabled.
+- Task data.
+- Preferences.
+
+Requirements:
+
+- User authentication.
+- Device registration.
+- Explicit sync enablement.
+- Secure transport.
+- Encryption at rest.
+- Appropriate end-to-end encryption for sensitive synced information.
+- Conflict resolution.
+- Sync status.
+- Backup and restore.
+- Logout.
+- Remote device removal.
+
+Do not pretend a local-only feature is cloud synchronized.
+
+Do not require a proprietary paid backend unless necessary and approved.
+
+Prefer an extensible backend abstraction.
+
+If the backend is not available, implement local persistence and the sync interface without displaying fake synchronization success.
+
+Never sync API secrets by default.
+
+SYSTEM 23 — AI ANSWER MODES ENGINE
+
+Create selectable response modes.
+
+Include:
+
+1. Quick Mode.
+2. Deep Think Mode.
+3. Research Mode.
+4. Creative Mode.
+5. Coding Mode.
+6. Precision Mode.
+
+Each mode should define:
+
+- Response instructions.
+- Reasoning or response depth settings supported by the selected provider.
+- Tool availability.
+- Search requirements where appropriate.
+- Output style.
+- Token budget preferences.
+
+The user must be able to change modes from the chat interface.
+
+Modes must work with the configured AI provider where its capabilities allow.
+
+Never claim a provider supports a capability that it does not.
+
+---
+
+PART 5 — UNIFIED SYSTEM INTEGRATION
+
+All 23 systems must work together.
+
+The central JARVIS Core must coordinate them.
+
+Suggested conceptual architecture:
+
+JARVIS CORE
+|
+|-- Universal AI Brain
+|-- BYOK Provider Manager
+|-- AI Request Router
+|-- Voice Engine
+|-- Memory Engine
+|-- Phone Control Engine
+|-- Notification Engine
+|-- Automation Engine
+|-- Web Research Engine
+|-- Document Intelligence
+|-- Vision Engine
+|-- Task Manager
+|-- Offline Engine
+|-- Security Center
+|-- Multi-Agent Engine
+|-- Plugin Marketplace
+|-- Fact Verification Engine
+|-- Share Integration
+|-- Workspace Engine
+|-- Diagnostics Engine
+|-- Personality Studio
+|-- Usage Analytics
+|-- Sync Engine
+|-- Answer Modes
+
+Architecture requirements:
+
+- Independent modules.
+- Clear interfaces.
+- Shared security policies.
+- Centralized configuration.
+- Consistent state management.
+- Persistent storage.
+- Robust dependency management.
+- Proper lifecycle handling.
+- Reusable components.
+
+Do not create separate duplicate AI request systems.
+
+Do not allow modules to bypass the central permission manager.
+
+---
+
+PART 6 — MAIN JARVIS UI/UX
+
+Preserve the existing JARVIS identity while improving the overall interface.
+
+Create or refine a premium futuristic Android UI.
+
+Main Screen
+
+Include:
+
+- JARVIS identity.
+- Siri-inspired animated voice visualizer.
+- Microphone activation control.
+- Voice listening indicator.
+- Thinking animation.
+- Speaking animation.
+- Text input.
+- Conversation history.
+- Current AI provider and model indicator.
+- Quick action shortcuts.
+- Connection status.
+
+Main Navigation
+
+Provide a clear and consistent navigation structure.
+
+Suggested sections:
+
+1. Home.
+2. Chat.
+3. AI Agents.
+4. Workspaces.
+5. Skills.
+6. Tasks.
+7. AI Providers.
+8. Settings.
+
+Do not overcrowd the main screen.
+
+Keep advanced settings accessible through organized sections.
+
+Settings
+
+Include suitable sections for:
+
+- AI Provider Management.
+- Model Management.
+- Voice Settings.
+- Memory Management.
+- Android Permissions.
+- Notification Settings.
+- Automation.
+- Personality.
+- Privacy.
+- Usage & Cost.
+- Multi-Device Sync.
+- Diagnostics.
+- About JARVIS.
+
+UI quality
+
+- Smooth animations.
+- Consistent visual design.
+- Professional typography.
+- Responsive layouts.
+- Dark theme.
+- Light theme if supported.
+- Proper loading states.
+- Error states.
+- Empty states.
+- Accessibility support.
+
+Use actual application state rather than decorative fake UI.
+
+---
+
+PART 7 — BANGLA & ENGLISH EXPERIENCE
+
+JARVIS must support the user's preferred language.
+
+Implement:
+
+- Bangla language interface where practical.
+- English language interface.
+- Bangla voice input where supported.
+- English voice input.
+- Language-aware responses.
+- Configurable response language.
+- Bangla speech output where supported.
+
+A mixed Bangla-English conversation must be handled as naturally as provider capabilities permit.
+
+Never force the user to communicate only in English.
+
+---
+
+PART 8 — ANDROID BACKGROUND OPERATION
+
+Improve background functionality while following Android platform requirements.
+
+Support appropriate background behavior for:
+
+- Voice service.
+- Notifications.
+- Reminders.
+- Scheduled tasks.
+- Automation.
+- Sync.
+
+Requirements:
+
+- Correct foreground service declarations.
+- Correct service types where required.
+- Runtime permission checks.
+- Battery optimization guidance.
+- Lifecycle handling.
+- Notification channels.
+- Service recovery where supported.
+- Resource management.
+
+IMPORTANT:
+
+Android background restrictions differ by OS version and manufacturer.
+
+Do not falsely promise unlimited background execution.
+
+Do not use hidden microphone recording.
+
+Do not bypass permission prompts or background execution restrictions.
+
+Explain any unsupported behavior honestly.
+
+---
+
+PART 9 — PERFORMANCE & RESOURCE MANAGEMENT
+
+The target environment includes Android devices with limited RAM and processing power.
+
+Optimize for mobile performance.
+
+Requirements:
+
+- Asynchronous network requests.
+- Efficient image handling.
+- Database indexing where appropriate.
+- Lazy loading.
+- Request cancellation.
+- Memory management.
+- Background work scheduling.
+- Controlled agent concurrency.
+- Efficient animations.
+- Avoid unnecessary polling.
+- Avoid duplicate API requests.
+
+Provide a graceful experience on lower-end supported devices.
+
+Do not require the heaviest local AI model to run the application.
+
+---
+
+PART 10 — ERROR HANDLING
+
+Create a unified error handling system.
+
+Handle:
+
+- Missing API key.
+- Invalid API key.
+- Unsupported provider.
+- Unsupported model.
+- Provider quota exhaustion.
+- Rate limits.
+- Network errors.
+- Server errors.
+- Invalid response.
+- JSON parsing errors.
+- Streaming interruptions.
+- Permission denial.
+- Storage errors.
+- Database errors.
+- Background service failure.
+- Unsupported file types.
+- Sync conflicts.
+- Agent failures.
+- Plugin errors.
+
+Use helpful messages that ordinary users can understand.
+
+Do not expose secret information in error messages.
+
+Do not crash the whole application because one optional module fails.
+
+---
+
+PART 11 — TESTING & QUALITY ASSURANCE
+
+Create a comprehensive test strategy.
+
+Test the following categories:
+
+AI Provider Tests
+
+- Gemini configuration.
+- OpenRouter configuration.
+- Independent key storage.
+- Provider selection.
+- Model selection.
+- API authentication.
+- Request formatting.
+- Response parsing.
+- Connection testing.
+
+Voice Tests
+
+- Microphone activation.
+- Speech recognition.
+- Language handling.
+- Text-to-speech.
+- Listening states.
+- Background service restrictions.
+
+Memory Tests
+
+- Save.
+- Retrieve.
+- Update.
+- Delete.
+- Search.
+- Privacy controls.
+
+System Integration Tests
+
+- Phone control permissions.
+- Notification access.
+- Automation.
+- Web research.
+- Document processing.
+- Vision requests.
+- Task persistence.
+- Offline behavior.
+- Agent coordination.
+- Plugin permissions.
+- Workspace isolation.
+- Diagnostics.
+- Usage reporting.
+- Sync.
+- Answer modes.
+
+Security Tests
+
+- API key masking.
+- Encrypted storage.
+- No plaintext secrets.
+- Permission enforcement.
+- Untrusted plugin protection.
+- Sensitive action confirmation.
+
+Use mocked API responses for tests.
+
+Do not require actual user API credentials for automated tests.
+
+Do not generate excessive real API requests during testing.
+
+---
+
+PART 12 — BUILD, GRADLE & GITHUB ACTIONS
+
+Inspect the current build configuration.
+
+Maintain AndroidX compatibility.
+
+Check:
+
+- Gradle wrapper.
+- Android Gradle Plugin.
+- Kotlin version.
+- Java compatibility.
+- compileSdk.
+- targetSdk.
+- minSdk.
+- Dependency compatibility.
+- Manifest declarations.
+- Resource merging.
+- Release configuration.
+
+Do not blindly upgrade every dependency to the newest version.
+
+Choose compatible versions supported by the existing project and available build environment.
+
+Inspect existing GitHub Actions.
+
+Preserve existing working workflows.
+
+Repair broken CI steps.
+
+Add or improve automated validation where appropriate.
+
+Attempt:
+
+1. Project sync or equivalent validation.
+2. Unit tests.
+3. Static checks.
+4. Android lint where available.
+5. Debug APK build.
+6. Release build configuration validation.
+
+Never commit API keys, signing passwords, or private credentials.
+
+Do not expose signing secrets in logs.
+
+Do not push changes or overwrite remote branches without authorization.
+
+If APK generation succeeds, report the exact output location.
+
+---
+
+PART 13 — IMPLEMENTATION EXECUTION STRATEGY
+
+Work through these implementation stages in order, but do not stop after describing them.
+
+Stage 1 — Repository Audit
+
+Inspect the repository and prepare a list of existing functionality, problems, dependencies, and integration points.
+
+Stage 2 — Architecture Foundation
+
+Establish modular interfaces, persistence, dependency injection, central request routing, and permission handling.
+
+Stage 3 — AI Provider Infrastructure
+
+Implement:
+
+- Universal AI Brain.
+- BYOK Manager.
+- Gemini adapter.
+- OpenRouter adapter.
+- Model management.
+- Secure API storage.
+- Provider switching.
+- Error handling.
+
+Stage 4 — Core Assistant Systems
+
+Implement all 12 core systems, including voice, memory, device integration, notifications, automation, research, files, vision, tasks, offline operation, and privacy.
+
+Stage 5 — Advanced Expansion
+
+Implement all 10 advanced systems, including multi-agent orchestration, skills marketplace, fact checking, sharing, workspaces, diagnostics, personality, usage analytics, sync, and answer modes.
+
+Stage 6 — Full Integration
+
+Connect all modules with the central JARVIS Core.
+
+Stage 7 — UI Completion
+
+Implement the relevant real application screens and interactions.
+
+Stage 8 — Testing and Debugging
+
+Run available checks and fix reproducible issues.
+
+Stage 9 — Build Verification
+
+Generate and verify a debug APK wherever the environment allows.
+
+Stage 10 — Final Audit
+
+Check every acceptance criterion and provide a truthful completion report.
+
+If a stage reveals a problem, fix it before proceeding where possible.
+
+Do not hide incomplete features.
+
+Do not replace implementation with a written suggestion.
+
+---
+
+PART 14 — FINAL ACCEPTANCE CHECKLIST
+
+The following must be individually evaluated.
+
+[ ] Existing project preserved.
+
+[ ] Universal AI Brain implemented.
+
+[ ] Gemini BYOK configuration implemented.
+
+[ ] OpenRouter BYOK configuration implemented.
+
+[ ] Secure API key storage implemented.
+
+[ ] Multiple providers can coexist.
+
+[ ] Model discovery and manual configuration supported.
+
+[ ] Provider switching works without app restart.
+
+[ ] Siri-inspired voice interface implemented.
+
+[ ] Speech recognition integrated.
+
+[ ] Text-to-speech integrated.
+
+[ ] Optional wake-word architecture implemented.
+
+[ ] Persistent user-controlled memory implemented.
+
+[ ] Android phone control integrated within platform limits.
+
+[ ] Notification intelligence implemented.
+
+[ ] Automation engine implemented.
+
+[ ] Web research integration implemented.
+
+[ ] File intelligence integrated.
+
+[ ] Vision integration implemented.
+
+[ ] Personal task manager implemented.
+
+[ ] Offline local functionality implemented.
+
+[ ] Privacy and security dashboard implemented.
+
+[ ] Multi-Agent Collaboration implemented.
+
+[ ] Skills and Plugin Marketplace implemented.
+
+[ ] Fact Verification implemented.
+
+[ ] Share-to-JARVIS implemented.
+
+[ ] Project Workspace implemented.
+
+[ ] Self-Diagnostic Engine implemented.
+
+[ ] Personality Studio implemented.
+
+[ ] Usage and Cost Dashboard implemented.
+
+[ ] Multi-Device Sync architecture implemented.
+
+[ ] AI Answer Modes implemented.
+
+[ ] Bangla and English experience supported.
+
+[ ] Background operation respects Android restrictions.
+
+[ ] Existing working features preserved.
+
+[ ] Security tests performed.
+
+[ ] Automated tests run where available.
+
+[ ] Debug APK build attempted and result documented.
+
+Do not mark a feature complete merely because its UI exists.
+
+A feature is complete only when its actual functionality is implemented and appropriately verified.
+
+Use three reporting states:
+
+- PASS: implemented and verified.
+- PARTIAL: implemented with documented limitations.
+- NOT IMPLEMENTED: functionality remains unavailable.
+
+---
+
+PART 15 — FINAL DELIVERY REPORT
+
+When implementation is finished, provide a detailed but understandable report.
+
+Include:
+
+1. Existing repository architecture discovered.
+2. Main problems found.
+3. Changes implemented.
+4. All 23 systems and their implementation status.
+5. Files created.
+6. Files modified.
+7. Dependencies added or changed.
+8. API provider configuration instructions.
+9. Android permission instructions.
+10. Security implementation.
+11. Testing results.
+12. Build result.
+13. APK output location if generated.
+14. Remaining external requirements.
+15. Known limitations.
+16. GitHub changes that still require my authorization.
+
+Provide simple beginner-friendly setup instructions.
+
+Do not assume that I know programming.
+
+Do not tell me to edit source code manually when an in-app configuration screen can provide the same functionality.
+
+---
+
+FINAL DIRECTIVE
+
+Your responsibility is to turn the existing JARVIS repository into a real, functional, secure, maintainable, modular, and extensible personal AI assistant.
+
+Implement the complete architecture described above.
+
+Preserve the existing application.
+
+Integrate all systems.
+
+Do not build fake features.
+
+Do not stop at planning.
+
+Do not produce only sample code.
+
+Do not claim success without verification.
+
+Make sensible engineering decisions autonomously.
+
+If something is blocked by missing credentials, external infrastructure, unavailable hardware, or Android restrictions, implement everything that can genuinely be implemented and document the exact blocker.
+
+Prioritize security, stability, compatibility, and real functionality over flashy but nonfunctional features.
+
+INSPECT → ARCHITECT → IMPLEMENT → INTEGRATE → TEST → DEBUG → BUILD → VERIFY.
+
+THE FINAL GOAL
+
+JARVIS must become one unified personal AI ecosystem with configurable intelligence, natural voice interaction, persistent memory, Android integration, multiple AI agents, extensible skills, research capabilities, intelligent automation, strong privacy controls, and a professional futuristic interface.
+
+Build the real JARVIS. Not just a prototype.
