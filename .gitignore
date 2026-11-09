@@ -22,3 +22,7 @@ app/build/
 *.aab
 debug.keystore
 debug.keystore.base64
+
+# Firebase config — contains a real API key; keep out of git
+app/google-services.json
+google-services.json
