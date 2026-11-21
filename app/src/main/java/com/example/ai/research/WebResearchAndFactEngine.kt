@@ -1,6 +1,7 @@
 package com.example.ai.research
 
 import com.example.ai.UniversalAiEngine
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -80,25 +81,29 @@ class WebResearchAndFactEngine(
 
     private fun fetchLiveSources(query: String): List<WebSource> {
         val list = mutableListOf<WebSource>()
+        val encoded = URLEncoder.encode(query.trim(), "UTF-8")
+
+        // 1. DuckDuckGo Instant Answer API
         try {
-            val encoded = URLEncoder.encode(query, "UTF-8")
-            // DuckDuckGo Instant Answer API for live public research facts
             val url = "https://api.duckduckgo.com/?q=$encoded&format=json&no_html=1&skip_disambig=1"
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "JARVIS-Android-Research/1.0")
+                .build()
             httpClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val body = response.body?.string().orEmpty()
                     val json = JSONObject(body)
                     val abstractText = json.optString("AbstractText", "")
-                    val abstractSource = json.optString("AbstractSource", "Wikipedia")
+                    val abstractSource = json.optString("AbstractSource", "DuckDuckGo")
                     val abstractUrl = json.optString("AbstractURL", "")
 
-                    if (abstractText.isNotBlank()) {
+                    if (abstractText.isNotBlank() && abstractUrl.isNotBlank()) {
                         list.add(
                             WebSource(
                                 title = abstractSource,
                                 snippet = abstractText,
-                                url = abstractUrl.ifBlank { "https://duckduckgo.com/?q=$encoded" }
+                                url = abstractUrl
                             )
                         )
                     }
@@ -109,12 +114,12 @@ class WebResearchAndFactEngine(
                             val item = related.optJSONObject(i) ?: continue
                             val text = item.optString("Text", "")
                             val firstUrl = item.optString("FirstURL", "")
-                            if (text.isNotBlank()) {
+                            if (text.isNotBlank() && firstUrl.isNotBlank()) {
                                 list.add(
                                     WebSource(
-                                        title = text.take(40) + "...",
+                                        title = text.take(48),
                                         snippet = text,
-                                        url = firstUrl.ifBlank { "https://duckduckgo.com" }
+                                        url = firstUrl
                                     )
                                 )
                             }
@@ -122,46 +127,130 @@ class WebResearchAndFactEngine(
                     }
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
-            // Graceful fallback to model knowledge
+            // Continue to next source
         }
-        return list
+
+        // 2. Wikipedia MediaWiki Search API
+        try {
+            val wikiUrl = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=$encoded&format=json&utf8=1&srlimit=3"
+            val request = Request.Builder()
+                .url(wikiUrl)
+                .header("User-Agent", "JARVIS-Android-Research/1.0")
+                .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string().orEmpty()
+                    val searchArr = JSONObject(body)
+                        .optJSONObject("query")
+                        ?.optJSONArray("search")
+                    if (searchArr != null) {
+                        for (i in 0 until searchArr.length()) {
+                            val item = searchArr.optJSONObject(i) ?: continue
+                            val title = item.optString("title", "")
+                            val rawSnippet = item.optString("snippet", "")
+                                .replace(Regex("<[^>]+>"), " ")
+                                .replace("&quot;", "\"")
+                                .replace("&amp;", "&")
+                                .replace(Regex("\\s+"), " ")
+                                .trim()
+                            if (title.isNotBlank() && rawSnippet.isNotBlank()) {
+                                val slug = URLEncoder.encode(title.replace(" ", "_"), "UTF-8")
+                                list.add(
+                                    WebSource(
+                                        title = "Wikipedia: $title",
+                                        snippet = rawSnippet,
+                                        url = "https://en.wikipedia.org/wiki/$slug"
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Graceful fallback if offline
+        }
+
+        return deduplicateSources(list)
+    }
+
+    companion object {
+        fun deduplicateSources(sources: List<WebSource>): List<WebSource> {
+            val seenUrls = LinkedHashSet<String>()
+            val result = mutableListOf<WebSource>()
+            for (src in sources) {
+                val normalizedUrl = src.url.trim().trimEnd('/').lowercase()
+                if (normalizedUrl.isNotBlank() && seenUrls.add(normalizedUrl)) {
+                    result.add(src)
+                }
+            }
+            return result
+        }
+
+        fun parseVerificationStatus(
+            summary: String,
+            hasRetrievedSources: Boolean
+        ): VerificationStatus {
+            return when {
+                summary.contains("CONFLICTING", ignoreCase = true) ||
+                    summary.contains("মতভেদ") ||
+                    summary.contains("মিথ্যা") ||
+                    summary.contains("ভুল") -> VerificationStatus.CONFLICTING_SOURCES
+                summary.contains("UNCERTAIN", ignoreCase = true) ||
+                    summary.contains("অনিশ্চিত") ||
+                    summary.contains("অপ্রতুল") -> VerificationStatus.UNCERTAIN
+                summary.contains("PARTIALLY", ignoreCase = true) ||
+                    summary.contains("আংশিক") -> VerificationStatus.PARTIALLY_VERIFIED
+                hasRetrievedSources && (
+                    summary.contains("VERIFIED", ignoreCase = true) ||
+                        summary.contains("যাচাইকৃত সত্য") ||
+                        summary.contains("সঠিক")
+                    ) -> VerificationStatus.VERIFIED
+                else -> VerificationStatus.UNCERTAIN
+            }
+        }
     }
 
     suspend fun verifyFacts(text: String): FactVerificationReport = withContext(Dispatchers.IO) {
-        val prompt = """
-            You are JARVIS's Fact Verification Engine. Analyze the following text and extract 2-4 factual claims.
-            For each claim:
-            1. State the claim.
-            2. Evaluate whether it is VERIFIED, PARTIALLY_VERIFIED, CONFLICTING_SOURCES, or UNCERTAIN.
-            3. Provide a brief rationale in Bangla.
-            
-            Text to verify:
-            "$text"
-            
-            Provide a clean structured summary in Bangla.
-        """.trimIndent()
+        val retrievedSources = fetchLiveSources(text.take(180))
+        val prompt = buildString {
+            append("You are JARVIS's Fact Verification Engine. Analyze the following text and extract 2-4 factual claims.\n")
+            if (retrievedSources.isNotEmpty()) {
+                append("\nRetrieved Live Evidence:\n")
+                retrievedSources.forEachIndexed { idx, src ->
+                    append("[${idx + 1}] ${src.title} (${src.url}): ${src.snippet}\n")
+                }
+            } else {
+                append("\n(No live web sources were retrieved for this claim; explicitly mark uncertain if external verification is required.)\n")
+            }
+            append("\nFor each claim:\n")
+            append("1. State the claim.\n")
+            append("2. Evaluate whether it is VERIFIED, PARTIALLY_VERIFIED, CONFLICTING_SOURCES, or UNCERTAIN.\n")
+            append("3. Provide a brief rationale in Bangla.\n\n")
+            append("Text to verify:\n\"$text\"\n\n")
+            append("Begin with the overall tag (VERIFIED / PARTIALLY_VERIFIED / CONFLICTING_SOURCES / UNCERTAIN) and provide a clean structured summary in Bangla.")
+        }
 
         val aiResponse = aiEngine.executeAiQuery(prompt, emptyList())
         val summary = aiResponse.replyText
 
-        // Heuristic status check based on analysis
-        val status = when {
-            summary.contains("ভুল") || summary.contains("মতভেদ") || summary.contains("CONFLICTING") -> VerificationStatus.CONFLICTING_SOURCES
-            summary.contains("অনিশ্চিত") || summary.contains("অপ্রতুল") || summary.contains("UNCERTAIN") -> VerificationStatus.UNCERTAIN
-            summary.contains("আংশিক") || summary.contains("PARTIALLY") -> VerificationStatus.PARTIALLY_VERIFIED
-            else -> VerificationStatus.VERIFIED
-        }
+        val status = parseVerificationStatus(summary, hasRetrievedSources = retrievedSources.isNotEmpty())
+        val realCitations = retrievedSources.map { it.url }
 
         FactVerificationReport(
             originalText = text,
             overallStatus = status,
             checkedClaims = listOf(
                 FactClaimCheck(
-                    claim = text.take(80) + "...",
+                    claim = text.take(80) + if (text.length > 80) "..." else "",
                     status = status,
-                    rationale = summary.take(150),
-                    sourceCitations = listOf("JARVIS Knowledge Base", "Public Reference Data")
+                    rationale = summary.take(200),
+                    sourceCitations = realCitations
                 )
             ),
             verifiedSummary = summary
