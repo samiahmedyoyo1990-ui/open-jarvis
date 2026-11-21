@@ -163,6 +163,7 @@ class JarvisRepository(
         database.routineDao().getEnabledRoutines()
 
     suspend fun initDefaultRoutinesIfEmpty() {
+        if (database.routineDao().countRoutines() > 0) return
         val defaults = listOf(
             com.example.data.local.entity.RoutineEntity(
                 name = "Good Morning Routine",
@@ -193,10 +194,13 @@ class JarvisRepository(
                 actionPayload = "শুভ রাত্রি স্যার! আজকের কাজগুলো সেভ করা হয়েছে। বিশ্রাম নিন।"
             )
         )
-        // Check if empty
         for (r in defaults) {
             database.routineDao().insertRoutine(r)
         }
+    }
+
+    suspend fun getEnabledRoutinesSnapshot(): List<com.example.data.local.entity.RoutineEntity> {
+        return database.routineDao().getEnabledRoutinesSnapshot()
     }
 
     suspend fun saveRoutine(routine: com.example.data.local.entity.RoutineEntity): Long {
