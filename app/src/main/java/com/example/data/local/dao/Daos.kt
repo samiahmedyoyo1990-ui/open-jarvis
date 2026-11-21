@@ -61,6 +61,9 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET isCompleted = :completed WHERE id = :id")
     suspend fun setTaskCompleted(id: Long, completed: Boolean)
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND reminderSet = 1 AND dueDate IS NOT NULL")
+    suspend fun getPendingScheduledTasksSnapshot(): List<TaskEntity>
 }
 
 @Dao
@@ -148,6 +151,12 @@ interface RoutineDao {
 
     @Query("DELETE FROM routines WHERE id = :id")
     suspend fun deleteRoutineById(id: Long)
+
+    @Query("SELECT * FROM routines WHERE isEnabled = 1 ORDER BY createdAt DESC")
+    suspend fun getEnabledRoutinesSnapshot(): List<RoutineEntity>
+
+    @Query("SELECT COUNT(*) FROM routines")
+    suspend fun countRoutines(): Int
 }
 
 @Dao
