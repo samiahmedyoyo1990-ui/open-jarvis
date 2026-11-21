@@ -21,12 +21,57 @@ enum class AiProviderType(
         defaultModel = "deepseek/deepseek-chat",
         description = "Unified gateway providing access to DeepSeek, Claude, Llama 3, GPT-4o, and hundreds of models."
     ),
+    CUSTOM_OPENAI(
+        displayName = "Custom / OpenAI-Compatible",
+        defaultBaseUrl = "https://api.openai.com/v1",
+        defaultModel = "gpt-4o-mini",
+        description = "Connect OpenAI, Groq, Together, Ollama, LM Studio, or any OpenAI-compatible API endpoint."
+    ),
     FIREBASE_AI(
         displayName = "Firebase AI Logic (Built-in)",
         defaultBaseUrl = "",
         defaultModel = "gemini-3.8-flash",
         description = "Zero-config server-side Gemini 3.8 Flash integrated with Firebase App Check."
     )
+}
+
+object AiEndpointSecurity {
+    fun isValidEndpointUrl(rawUrl: String): Boolean {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isBlank()) return false
+        return try {
+            val uri = java.net.URI(trimmed)
+            val scheme = uri.scheme?.lowercase() ?: return false
+            val host = uri.host?.lowercase() ?: return false
+            if (!uri.userInfo.isNullOrBlank()) return false
+            when (scheme) {
+                "https" -> host.isNotBlank()
+                "http" -> isLocalOrLanHost(host)
+                else -> false
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun isLocalOrLanHost(host: String): Boolean {
+        if (host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "10.0.2.2") return true
+        if (host.startsWith("192.168.") || host.startsWith("10.")) return true
+        if (host.startsWith("172.")) {
+            val secondOctet = host.removePrefix("172.").substringBefore('.').toIntOrNull()
+            if (secondOctet != null && secondOctet in 16..31) return true
+        }
+        return false
+    }
+
+    fun redactSecret(text: String, secret: String): String {
+        if (secret.isBlank() || text.isBlank()) return text
+        return text.replace(secret, "[REDACTED]")
+    }
+
+    fun isRetryableStatusCode(code: Int): Boolean {
+        return code == 408 || code == 429 || code in 500..599 || code == 0
+    }
 }
 
 data class AiModelInfo(
@@ -145,3 +190,4 @@ data class AiProviderConfig(
         }
     }
 }
+
