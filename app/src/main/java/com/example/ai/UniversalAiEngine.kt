@@ -5,17 +5,20 @@ import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.example.ai.model.AiEndpointSecurity
 import com.example.ai.model.AiModelInfo
 import com.example.ai.model.AiProviderConfig
 import com.example.ai.model.AiProviderType
 import com.example.ai.model.ConnectionTestResult
 import com.example.ai.providers.FirebaseAiProviderAdapter
 import com.example.ai.providers.GeminiDirectProviderAdapter
+import com.example.ai.providers.OpenAiCompatibleProviderAdapter
 import com.example.ai.providers.OpenRouterProviderAdapter
 import com.example.ai.providers.UniversalAiProvider
 import com.example.ai.security.SecureApiKeyStorage
 import com.example.data.local.entity.ConversationEntity
 import com.example.data.preferences.dataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -182,9 +185,25 @@ class UniversalAiEngine(private val context: Context) {
 
     suspend fun fetchModelsForProvider(providerId: String, apiKeyOverride: String? = null): List<AiModelInfo> {
         val config = _allConfigs.value.firstOrNull { it.id == providerId } ?: return emptyList()
-        val key = apiKeyOverride ?: secureStorage.getApiKey(providerId).orEmpty()
+        return fetchModelsForConfig(config, apiKeyOverride)
+    }
+
+    suspend fun fetchModelsForConfig(config: AiProviderConfig, apiKeyOverride: String? = null): List<AiModelInfo> {
+        val key = apiKeyOverride ?: secureStorage.getApiKey(config.id).orEmpty()
         val adapter = createAdapter(config)
         return adapter.fetchModels(key)
+    }
+
+    private fun requiresApiKey(config: AiProviderConfig): Boolean {
+        return when (config.type) {
+            AiProviderType.FIREBASE_AI -> false
+            AiProviderType.GOOGLE_GEMINI, AiProviderType.OPEN_ROUTER -> true
+            AiProviderType.CUSTOM_OPENAI -> {
+                val base = config.baseUrl.trim().lowercase()
+                // Local/LAN servers (e.g., Ollama / LM Studio on http://localhost or RFC1918) often run without a key
+                !base.startsWith("http://")
+            }
+        }
     }
 
     suspend fun processQuery(
@@ -192,69 +211,106 @@ class UniversalAiEngine(private val context: Context) {
         history: List<ConversationEntity>,
         userName: String
     ): AiAssistantResponse {
+        return executeWithFailover(
+            prompt = prompt,
+            history = history,
+            userName = userName
+        ) { adapter, key ->
+            adapter.generateResponse(prompt, history, userName, key)
+        }
+    }
+
+    suspend fun executeMultimodalQuery(
+        prompt: String,
+        imageBase64: String,
+        mimeType: String = "image/jpeg",
+        history: List<ConversationEntity> = emptyList(),
+        userName: String = "User"
+    ): AiAssistantResponse {
+        return executeWithFailover(
+            prompt = prompt,
+            history = history,
+            userName = userName
+        ) { adapter, key ->
+            adapter.generateMultimodalResponse(prompt, imageBase64, mimeType, history, userName, key)
+        }
+    }
+
+    private suspend fun executeWithFailover(
+        prompt: String,
+        history: List<ConversationEntity>,
+        userName: String,
+        callBlock: suspend (UniversalAiProvider, String) -> AiAssistantResponse
+    ): AiAssistantResponse {
         val active = _activeConfig.value
         val activeKey = secureStorage.getApiKey(active.id).orEmpty()
 
-        // Check if BYOK key is missing
-        if (active.type != AiProviderType.FIREBASE_AI && activeKey.isBlank()) {
-            // Check if built-in Firebase AI exists as silent fallback, or guide the user
-            val firebaseConfig = _allConfigs.value.firstOrNull { it.type == AiProviderType.FIREBASE_AI }
-            if (firebaseConfig != null) {
-                val firebaseAdapter = createAdapter(firebaseConfig)
-                val fallbackResponse = firebaseAdapter.generateResponse(prompt, history, userName, "")
-                return fallbackResponse.copy(
-                    replyText = "${fallbackResponse.replyText}\n\n[নোট: ${active.name} এর API Key যুক্ত করা নেই, ডিফল্ট সার্ভার মডেল ব্যবহার করা হয়েছে। সেটিংস -> 'AI Providers' এ গিয়ে আপনার নিজস্ব কী যুক্ত করতে পারেন।]"
-                )
-            }
-
+        // Explicit BYOK validation: do not silently leak user prompts to Firebase when user selected a BYOK provider
+        if (requiresApiKey(active) && activeKey.isBlank()) {
             return AiAssistantResponse(
-                replyText = "${active.name} এর API Key কনফিগার করা নেই। অনুগ্রহ করে সেটিংস -> 'AI Provider Manager' এ গিয়ে আপনার API Key যুক্ত করুন।"
+                replyText = "${active.name} এর API Key কনফিগার করা নেই। অনুগ্রহ করে সেটিংস -> 'AI Providers' এ গিয়ে আপনার API Key যুক্ত করুন অথবা Firebase AI প্রোভাইডার নির্বাচন করুন।",
+                isError = true
             )
         }
 
-        // Primary Execution
+        if (active.type != AiProviderType.FIREBASE_AI &&
+            !AiEndpointSecurity.isValidEndpointUrl(active.baseUrl.ifBlank { active.type.defaultBaseUrl })
+        ) {
+            return AiAssistantResponse(
+                replyText = "${active.name} এর Endpoint URL সঠিক বা নিরাপদ নয়।",
+                isError = true
+            )
+        }
+
         val primaryAdapter = createAdapter(active)
         try {
-            val response = primaryAdapter.generateResponse(prompt, history, userName, activeKey)
-
-            // If primary returned a non-action error and backup is enabled, attempt backup
-            if (isErrorResponse(response.replyText) && _isBackupEnabled.value) {
-                val backup = _backupConfig.value
-                if (backup != null && backup.id != active.id) {
-                    val backupKey = secureStorage.getApiKey(backup.id).orEmpty()
-                    val backupAdapter = createAdapter(backup)
-                    val backupResp = backupAdapter.generateResponse(prompt, history, userName, backupKey)
-                    return backupResp.copy(
-                        replyText = "${backupResp.replyText}\n\n[ব্যাকআপ ইঞ্জিন: ${backup.name}]"
-                    )
-                }
+            val response = callBlock(primaryAdapter, activeKey)
+            val shouldFailover = (response.isError && response.isRetryableError) || isErrorResponse(response.replyText)
+            if (shouldFailover && _isBackupEnabled.value) {
+                val backupResp = tryBackupProvider(active.id, callBlock)
+                if (backupResp != null) return backupResp
             }
-
             return response
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Primary provider error: ${e.message}", e)
-
-            // Attempt backup on exception
             if (_isBackupEnabled.value) {
-                val backup = _backupConfig.value
-                if (backup != null && backup.id != active.id) {
-                    val backupKey = secureStorage.getApiKey(backup.id).orEmpty()
-                    val backupAdapter = createAdapter(backup)
-                    val backupResp = backupAdapter.generateResponse(prompt, history, userName, backupKey)
-                    return backupResp.copy(
-                        replyText = "${backupResp.replyText}\n\n[ব্যাকআপ ইঞ্জিন: ${backup.name}]"
-                    )
-                }
+                val backupResp = tryBackupProvider(active.id, callBlock)
+                if (backupResp != null) return backupResp
             }
-
             return AiAssistantResponse(
-                replyText = "AI প্রসেসিং ত্রুটি (${active.name}): ${e.localizedMessage ?: "অজানা সমস্যা"}"
+                replyText = "AI প্রসেসিং ত্রুটি (${active.name}): ${AiEndpointSecurity.redactSecret(e.localizedMessage ?: "অজানা সমস্যা", activeKey)}",
+                isError = true
             )
         }
     }
 
+    private suspend fun tryBackupProvider(
+        activeId: String,
+        callBlock: suspend (UniversalAiProvider, String) -> AiAssistantResponse
+    ): AiAssistantResponse? {
+        val backup = _backupConfig.value ?: return null
+        if (backup.id == activeId) return null
+        val backupKey = secureStorage.getApiKey(backup.id).orEmpty()
+        if (requiresApiKey(backup) && backupKey.isBlank()) return null
+
+        return try {
+            val backupAdapter = createAdapter(backup)
+            val backupResp = callBlock(backupAdapter, backupKey)
+            if (backupResp.isError) null else backupResp.copy(
+                replyText = "${backupResp.replyText}\n\n[ব্যাকআপ ইঞ্জিন: ${backup.name}]"
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Backup provider ${backup.name} also failed: ${e.message}")
+            null
+        }
+    }
+
     private fun isErrorResponse(reply: String): Boolean {
-        val errorKeywords = listOf("HTTP 401", "HTTP 403", "HTTP 429", "Quota Exceeded", "রেট লিমিট", "সার্ভার সাময়িকভাবে ডাউন", "API Key সঠিক নয়")
+        val errorKeywords = listOf("HTTP 401", "HTTP 403", "HTTP 429", "Quota Exceeded", "রেট লিমিট", "সার্ভার সাময়িকভাবে")
         return errorKeywords.any { reply.contains(it) }
     }
 
@@ -262,6 +318,7 @@ class UniversalAiEngine(private val context: Context) {
         return when (config.type) {
             AiProviderType.GOOGLE_GEMINI -> GeminiDirectProviderAdapter(config)
             AiProviderType.OPEN_ROUTER -> OpenRouterProviderAdapter(config)
+            AiProviderType.CUSTOM_OPENAI -> OpenAiCompatibleProviderAdapter(config)
             AiProviderType.FIREBASE_AI -> FirebaseAiProviderAdapter(config)
         }
     }

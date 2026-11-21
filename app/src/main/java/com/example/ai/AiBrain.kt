@@ -17,7 +17,9 @@ import kotlinx.coroutines.withTimeout
 
 data class AiAssistantResponse(
     val replyText: String,
-    val action: JarvisAction = JarvisAction.None
+    val action: JarvisAction = JarvisAction.None,
+    val isError: Boolean = false,
+    val isRetryableError: Boolean = false
 )
 
 interface AiProvider {
