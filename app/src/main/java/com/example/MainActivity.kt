@@ -77,15 +77,27 @@ class MainActivity : ComponentActivity() {
 
     private fun checkShareIntent(intent: Intent?) {
         if (intent == null) return
-        if (intent.action == Intent.ACTION_SEND) {
-            val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+                viewModel.handleSharedContent(text, uri)
             }
-            viewModel.handleSharedContent(text, uri)
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val uris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableArrayListExtra<android.net.Uri>(Intent.EXTRA_STREAM)
+                }
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                viewModel.handleSharedUris(sharedText, uris.orEmpty())
+            }
         }
     }
 
