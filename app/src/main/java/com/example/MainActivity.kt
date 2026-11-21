@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
@@ -43,13 +44,14 @@ class MainActivity : ComponentActivity() {
         checkWakeWordIntent(intent)
         checkShareIntent(intent)
 
-        // Register local broadcast receiver for wake-word activation while app is in foreground
+        // Register local broadcast receiver for wake-word activation while app is in foreground.
+        // ContextCompat picks the flagged overload on API 33+ and the plain overload below it,
+        // so lint's UnspecifiedRegisterReceiverFlag (which flags the bare 2-arg call even
+        // behind a VERSION.SDK_INT guard) stays satisfied on every API level.
         val filter = IntentFilter(JarvisWakeWordService.ACTION_WAKE_WORD_DETECTED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(wakeWordReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(wakeWordReceiver, filter)
-        }
+        ContextCompat.registerReceiver(
+            this, wakeWordReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         // STEP 2: Initialize UI
         setContent {
