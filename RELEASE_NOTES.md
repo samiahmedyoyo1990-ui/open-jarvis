@@ -1,49 +1,21 @@
-# Open Jarvis v1.0.0-beta
+# JARVIS v1.0 Release Notes
 
-> Control your Android device with natural language.
-> Give Jarvis a prompt — it handles everything.
-
-## What's in this release
-
-This is the first public beta of Open Jarvis.
+> Personal AI Assistant for Android with Bangla, Romanized Bangla, and English voice & text interaction.
 
 ## Highlights
 
-- Talk to your phone in plain English
-- Chains multiple apps together for complex tasks
-- Uses any AI (Groq, Gemini, Claude, or local model)
-- Learns your habits over time
-- Works offline with local model
-- Control from Termux CLI
-- Skip YouTube ads automatically
-- Schedule commands to run automatically
-- Build simple Android apps from a description
-
-## Installation
-
-1. Download open-jarvis-v1.0.0-beta.apk below
-2. Install (allow unknown sources if prompted)
-3. Grant Accessibility Service permission
-4. Grant Overlay permission
-5. Add your LLM API key in Settings
-6. Tap the floating Jarvis pill and give it a prompt
+- **Universal AI Engine (BYOK):** Configure Google Gemini, OpenRouter, Custom OpenAI-compatible APIs (OpenAI, Groq, local Ollama / LM Studio), or built-in Firebase AI Logic with automatic failover.
+- **Voice & Wake-Word Pipeline:** Push-to-talk speech recognition (`bn-BD`, `bn-IN`, `en-US`), Bengali/English TTS, and optional background `"Hey JARVIS"` wake-word listener.
+- **Database & Reminders:** Local Room v3 persistence with schema migrations, task due-date reminders (`AlarmManager`), and boot rescheduling.
+- **Encrypted Sync & Backup:** PBKDF2 + AES-256-GCM passphrase-encrypted backup export and deduplicated transactional restore.
+- **GitHub Skill Inspector:** Repository URL validation, security audit scanning, permission allowlist enforcement, opt-in permission grants, update permission escalation checks, and 1-click rollback.
+- **Opt-In Notification Intelligence:** Sensitive financial/MFS/OTP/authenticator apps are blocked automatically, OTP codes are redacted, and AI summarization requires explicit consent.
 
 ## Requirements
 
-- Android 8.0 or higher
-- 4GB RAM recommended (2GB minimum)
-- Any LLM API key OR local model (offline)
+- Android 7.0+ (API 24+ minSdk, compiled & targeted against Android 16 / SDK 36)
+- Firebase configuration (`google-services.json`) for built-in Firebase AI Logic, or any BYOK provider key configured in Settings → AI Providers.
 
-## Known Issues
+## Notes
 
-- Local model requires 2GB+ free RAM
-- App Builder requires Termux + Gradle for APK generation
-- Tutorial Mode element highlighting may miss some elements
-  in apps with custom accessibility implementations
-
-## Feedback
-
-Open an issue on GitHub or start a Discussion.
-Star the repo if you find it useful.
-
-Built on Android using Termux.
+- Physical device features (live OEM TTS voices, microphone wake-word hardware behavior, and Play-signed release APKs) should be validated on a target Android device.
