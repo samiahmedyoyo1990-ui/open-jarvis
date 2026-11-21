@@ -1,12 +1,14 @@
 package com.example.github
 
 import android.util.Base64
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
@@ -22,33 +24,63 @@ class GitHubApiClient(
         const val BASE_URL = "https://api.github.com"
         const val RAW_BASE_URL = "https://raw.githubusercontent.com"
 
+        private val OWNER_REGEX = Regex("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
+        private val REPO_REGEX = Regex("^[A-Za-z0-9._-]{1,100}$")
+        private val BRANCH_REGEX = Regex("^[A-Za-z0-9._/-]{1,120}$")
+
         /**
-         * Parses inputs like:
-         * - "https://github.com/samiahmedyoyo1990-ui/open-jarvis"
-         * - "github.com/owner/repo"
-         * - "owner/repo"
-         * - "https://github.com/owner/repo/tree/main/subfolder"
+         * Parses & strictly validates GitHub repository URLs or owner/repo shorthand.
          */
         fun parseUrl(input: String): ParsedRepoInfo? {
-            val clean = input.trim()
-                .removePrefix("https://")
-                .removePrefix("http://")
-                .removePrefix("www.")
-                .removePrefix("github.com/")
+            val trimmed = input.trim()
+            if (trimmed.isBlank() || trimmed.contains('@') || trimmed.any { it.isWhitespace() }) return null
+            if (trimmed.contains("..") || trimmed.contains('\\')) return null
 
-            val parts = clean.split("/").filter { it.isNotBlank() }
+            val pathPart: String = if (trimmed.contains("://")) {
+                val uri = try {
+                    URI(trimmed)
+                } catch (_: Exception) {
+                    return null
+                }
+                val scheme = uri.scheme?.lowercase() ?: return null
+                if (scheme != "https") return null
+                if (!uri.userInfo.isNullOrBlank()) return null
+                val host = uri.host?.lowercase() ?: return null
+                if (host != "github.com" && host != "www.github.com") return null
+                uri.path.orEmpty()
+            } else {
+                val strippedHost = trimmed
+                    .removePrefix("www.github.com/")
+                    .removePrefix("github.com/")
+                // Reject arbitrary third-party domains such as evil.com/owner/repo
+                if (strippedHost == trimmed && trimmed.substringBefore('/').contains('.')) {
+                    return null
+                }
+                strippedHost.substringBefore('?').substringBefore('#')
+            }
+
+            val parts = pathPart.split("/").filter { it.isNotBlank() }
             if (parts.size < 2) return null
 
             val owner = parts[0]
             val repo = parts[1].removeSuffix(".git")
+            if (!OWNER_REGEX.matches(owner)) return null
+            if (repo == "." || repo == ".." || !REPO_REGEX.matches(repo)) return null
+
             var branch: String? = null
             var subPath: String? = null
 
             if (parts.size >= 4 && parts[2] == "tree") {
-                branch = parts[3]
+                val rawBranch = parts[3]
+                if (!BRANCH_REGEX.matches(rawBranch) || rawBranch.contains("..")) return null
+                branch = rawBranch
                 if (parts.size > 4) {
-                    subPath = parts.subList(4, parts.size).joinToString("/")
+                    val rawSubParts = parts.subList(4, parts.size)
+                    if (rawSubParts.any { it == "." || it == ".." || it.contains("..") }) return null
+                    subPath = rawSubParts.joinToString("/")
                 }
+            } else if (parts.size > 2) {
+                return null
             }
 
             return ParsedRepoInfo(owner, repo, branch, subPath)
@@ -124,6 +156,8 @@ class GitHubApiClient(
                     }
                     result
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 emptyList()
             }
@@ -166,6 +200,8 @@ class GitHubApiClient(
                         updatedAt = item.optString("updated_at", "")
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 null
             }
