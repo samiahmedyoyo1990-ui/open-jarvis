@@ -1,184 +1,34 @@
-# Security — Open Jarvis
+# Security — JARVIS Android
 
-## Security Model
+## Security Architecture
 
-Open Jarvis has a defense-in-depth security architecture focusing on user privacy and device safety.
-
----
-
-## Core Principles
-
-1. **Data stays on device** — No cloud sync, all local
-2. **Least privilege** — Only needed permissions
-3. **Defense in depth** — Multiple security layers
-4. **Transparent** — User knows what's happening
+JARVIS is designed with local-first data storage and defense-in-depth protections for API keys, backups, external AI skills, and notifications.
 
 ---
 
-## Permissions
+## Key Controls
 
-### Required Permissions
+### 1. API Key Storage (`SecureApiKeyStorage`)
+- User BYOK API keys and optional GitHub PAT tokens are encrypted at rest using Android Keystore (`AES/GCM/NoPadding`, 256-bit key in `jarvis_byok_master_key`).
+- Gemini direct API requests send the key via the `x-goog-api-key` HTTP header rather than URL query parameters (`?key=`), preventing URL/proxy leakage.
+- Error messages pass through `AiEndpointSecurity.redactSecret(...)` before surfacing to logs or UI.
 
-| Permission | Purpose | Risk |
-|------------|---------|------|
-| Accessibility Service | Control UI | High |
-| Overlay | Floating widget | Medium |
-| Microphone | Voice input | High |
-| Storage | Local model | Medium |
-| Network | LLM APIs | Medium |
+### 2. Endpoint Validation (`AiEndpointSecurity`)
+- Public external endpoints require `https://` without embedded `user:pass@` URL credentials.
+- Unencrypted `http://` endpoints are permitted only for local/LAN hosts (`localhost`, `127.0.0.1`, `::1`, `10.0.2.2`, RFC 1918 private subnets) such as Ollama or LM Studio.
 
-### Not Required
+### 3. Encrypted Backup & Sync (`SyncEngine`)
+- Exported backups use the `JARVIS_SYNC_V2:` envelope powered by `PBKDF2WithHmacSHA256` (100,000 iterations, random 16-byte salt) and `AES/GCM/NoPadding` (random 12-byte IV, 128-bit authentication tag).
+- Legacy v1 AES-CBC payloads remain readable for backward-compatible restores.
+- Restores execute inside `database.withTransaction` with deduplication and never rely on a hardcoded default passkey in the UI.
 
-- Camera (uses screen capture only)
-- Contacts (optional, for calls only)
-- Location (never used)
+### 4. GitHub Skill Inspector & Runtime (`SkillSecurityInspector` / `SecureSkillRuntime`)
+- `GitHubApiClient.parseUrl` rejects credential-smuggling `@` URLs, non-GitHub hosts, whitespace, and `..` path traversal.
+- `SkillSecurityInspector` scans file paths, manifests, tool definitions, and README text for binaries (`.dex`, `.apk`, `.so`, `.jar`, `.exe`, `.sh`, etc.), path traversal, embedded credentials, and prompt-injection patterns.
+- Only `NETWORK`, `DEVICE_ACTIONS`, and `STORAGE_READ` permissions are allowlisted; disallowed permissions cause `AuditStatus.BLOCKED`.
+- `GitHubSkillsScreen` defaults requested skill permissions to **opt-in (unchecked)**, `GitHubSkillInstaller` strips newly escalated permissions on updates, and `SecureSkillRuntime` wraps active snippets in `<untrusted_skill_context>` delimiters while stripping embedded `<<ACTION:...>>` tags.
 
----
-
-## Privacy Protections
-
-### Local-First
-
-- Graphify database is local SQLite
-- API keys in EncryptedSharedPreferences
-- No analytics or tracking
-- No cloud backup
-
-### Notification Privacy
-
-Banking apps blocked from notification reading:
-
-```
-com.google.android.apps.authenticator2
-com Chase
-com.bankofamerica
-com.wellsfargo
-com.citibank
-com.paypal
-```
-
- Jarvis won't read or reply to these notifications.
-
----
-
-## Security Features
-
-### Prompt Injection Guard
-
-```kotlin
-val injectionPatterns = listOf(
-    "ignore instructions",
-    "jailbreak",
-    "DAN mode",
-    "new instructions"
-)
-```
-
-Detects and blocks prompt injection attempts.
-
-### Provider Fallback Chain
-
-If one LLM fails:
-1. Try primary provider
-2. Wait 1 second
-3. Try fallback provider
-4. Show error with recovery suggestion
-
-### Socket Authentication
-
-Only allowed UIDs can connect:
-
-```kotlin
-val allowedUids = setOf(
-    context.applicationInfo.uid,
-    2000,  // shell
-    "com.termux".hashCode()
-)
-```
-
----
-
-## Data Handling
-
-### What's Stored
-
-- Task history (commands, results)
-- App usage patterns
-- User preferences
-- Graphify memory nodes
-
-### What's NOT Stored
-
-- Screenshots (immediate discard)
-- Voice recordings (session-only)
-- API keys (encrypted only)
-- Clipboard content (optional)
-
----
-
-## API Key Security
-
-Keys stored using EncryptedSharedPreferences:
-
-```kotlin
-val masterKey = MasterKey.Builder(context)
-    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-    .build()
-
-val prefs = EncryptedSharedPreferences.create(
-    context,
-    "secure_prefs",
-    masterKey,
-    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-)
-```
-
----
-
-## Security Best Practices
-
-1. **Review permissions** — Grant only what's needed
-2. **Use local models** — Zero network dependency
-3. **Disable voice** — If not needed
-4. **Check notifications** — Review what Jarvis reads
-5. **Update regularly** — Security fixes
-
----
-
-## Known Security Considerations
-
-### Accessibility Service
-
-The accessibility service can:
-- Read all screen content
-- Perform gestures
-- Type text
-- Launch apps
-
-This is why:
-- No network needed for operation
-- Local data storage
-- Notification privacy guard
-- Prompt injection protection
-
----
-
-## Reporting Security Issues
-
-If you find a security issue:
-1. Don't open public issue
-2. Email: security@tokenarc.com
-3. Include details
-4. We'll patch and credit
-
----
-
-## Security Checklist
-
-Before using:
-- [ ] Review permissions granted
-- [ ] Enable notification privacy
-- [ ] Use local model for sensitive tasks
-- [ ] Don't run during sensitive operations
-- [ ] Keep app updated
+### 5. Notification Privacy (`JarvisNotificationListenerService`)
+- Notification capture and AI summarization are **disabled by default** via DataStore preferences (`notification_capture_enabled`, `notification_ai_summary_consent`).
+- Banking, MFS (bKash, Nagad, Rocket, Upay, etc.), authenticator, password manager, wallet, and SMS/messaging packages are filtered out automatically.
+- OTP/PIN/verification codes matching numeric OTP contexts are redacted with `[REDACTED_SECRET]` / `[REDACTED_CODE]`.

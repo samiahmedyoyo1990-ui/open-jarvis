@@ -13,7 +13,7 @@ Skills are JSON-defined task templates that Jarvis uses to understand common use
   "id": "unique-skill-id",
   "name": "Human readable name",
   "version": "1.0",
-  "author": "tokenarc",
+  "author": "JARVIS Built-in",
   "triggerPhrases": ["phrase 1", "phrase 2"],
   "variables": [
     {"key": "variableName", "description": "What this is", "extractFrom": "trigger"}
