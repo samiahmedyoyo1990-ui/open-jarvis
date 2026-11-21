@@ -42,7 +42,10 @@ jobs:
             exit 1
           fi
 
-          yes | "$SDKMANAGER" --licenses >/dev/null
+          # `yes` exits non-zero with a broken pipe once sdkmanager stops reading
+          # (pipefail would fail the step); the install + android.jar checks below
+          # still verify the platform really got installed.
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install "platforms;android-36.1" "build-tools;36.0.0"
 
           test -f "${ANDROID_HOME}/platforms/android-36.1/android.jar"
