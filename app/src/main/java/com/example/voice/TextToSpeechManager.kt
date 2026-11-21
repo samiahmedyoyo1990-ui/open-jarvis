@@ -24,6 +24,31 @@ class TextToSpeechManager(private val context: Context) : TextToSpeech.OnInitLis
 
     private var currentSpeakingCallback: (() -> Unit)? = null
 
+    /** Language explicitly requested via [setLanguageForCode], applied once the engine is ready. */
+    private var preferredLocale: Locale? = null
+
+    /**
+     * Selects the TTS language by BCP-47 code ("en", "bn", "bn-BD", ...).
+     * Safe to call before the engine finishes initialising: the choice is stored
+     * and applied in [setupVoice] / immediately once initialised.
+     */
+    fun setLanguageForCode(code: String) {
+        val normalized = code.trim().replace('_', '-')
+        if (normalized.isBlank()) return
+        val locale = try {
+            Locale.forLanguageTag(normalized)
+        } catch (_: Exception) {
+            Locale(normalized)
+        }
+        preferredLocale = locale
+        if (isInitialized) {
+            val result = tts?.setLanguage(locale)
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.w(TAG, "TTS language $code not supported on device.")
+            }
+        }
+    }
+
     init {
         tts = TextToSpeech(context.applicationContext, this)
     }
@@ -64,6 +89,13 @@ class TextToSpeechManager(private val context: Context) : TextToSpeech.OnInitLis
 
     private fun setupVoice() {
         val ttsInstance = tts ?: return
+        // An explicitly requested language (see setLanguageForCode) wins over the default.
+        preferredLocale?.let { preferred ->
+            if (ttsInstance.isLanguageAvailable(preferred) >= TextToSpeech.LANG_AVAILABLE) {
+                val result = ttsInstance.setLanguage(preferred)
+                if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) return
+            }
+        }
         // Try Bengali (Bangladesh), then Bengali (India), then Bengali generic, then fallback to English
         val bnBD = Locale("bn", "BD")
         val bnIN = Locale("bn", "IN")
@@ -92,6 +124,9 @@ class TextToSpeechManager(private val context: Context) : TextToSpeech.OnInitLis
     ) {
         if (!isInitialized || tts == null) {
             Log.w(TAG, "TTS not initialized yet")
+            // Never swallow the callback: callers waiting on completion must be
+            // released immediately instead of hanging until the watchdog fires.
+            onDone?.invoke()
             return
         }
 
