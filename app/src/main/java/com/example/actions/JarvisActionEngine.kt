@@ -216,57 +216,39 @@ class JarvisActionEngine(private val context: Context) {
      * Local Offline Intent Classifier for instantaneous response when offline
      */
     fun parseOfflineIntent(userPrompt: String): Pair<JarvisAction, String>? {
-        val text = userPrompt.lowercase().trim()
+        val text = userPrompt.lowercase(Locale.ROOT).trim()
+        if (text.isBlank()) return null
 
-        // YouTube
-        if (text.contains("youtube") || text.contains("ইউটিউব")) {
-            return Pair(
-                JarvisAction.OpenApp("YouTube", "com.google.android.youtube", "https://www.youtube.com"),
-                "অবশ্যই, ইউটিউব ওপেন করছি।"
-            )
+        // Only execute app launches for explicit commands; mentioning an app in a question
+        // must never trigger an unexpected side effect.
+        val launchCommand = listOf("open ", "launch ", "start ", "চালু কর", "খোলো", "ওপেন কর")
+            .any { text.startsWith(it) || text.contains(" $it") }
+        if (launchCommand) {
+            when {
+                text.contains("youtube") || text.contains("ইউটিউব") -> return Pair(
+                    JarvisAction.OpenApp("YouTube", "com.google.android.youtube", "https://www.youtube.com"),
+                    "অবশ্যই, ইউটিউব ওপেন করছি।"
+                )
+                text.contains("chrome") || text.contains("browser") || text.contains("ব্রাউজার") -> return Pair(
+                    JarvisAction.OpenApp("Google Chrome", "com.android.chrome", "https://www.google.com"),
+                    "ব্রাউজার ওপেন করছি।"
+                )
+                text.contains("whatsapp") || text.contains("হোয়াটসঅ্যাপ") || text.contains("হোয়াটসঅ্যাপ") -> return Pair(
+                    JarvisAction.OpenApp("WhatsApp", "com.whatsapp"),
+                    "হোয়াটসঅ্যাপ ওপেন করছি।"
+                )
+                text.contains("camera") || text.contains("ক্যামেরা") -> return Pair(
+                    JarvisAction.OpenApp("Camera", null), "ক্যামেরা চালু করছি।"
+                )
+                text.contains("calculator") || text.contains("ক্যালকুলেটর") -> return Pair(
+                    JarvisAction.OpenApp("Calculator", "com.google.android.calculator"), "ক্যালকুলেটর ওপেন করছি।"
+                )
+                text.contains("clock") || text.contains("alarm") || text.contains("ঘড়ি") || text.contains("অ্যালার্ম") -> return Pair(
+                    JarvisAction.OpenApp("Clock", "com.google.android.deskclock"), "ঘড়ি এবং অ্যালার্ম স্ক্রিন ওপেন করছি।"
+                )
+            }
         }
 
-        // Chrome / Browser
-        if (text.contains("chrome") || text.contains("browser") || text.contains("ব্রাউজার") || text.contains("ইন্টারনেট")) {
-            return Pair(
-                JarvisAction.OpenApp("Google Chrome", "com.android.chrome", "https://www.google.com"),
-                "ব্রাউজার ওপেন করছি।"
-            )
-        }
-
-        // WhatsApp
-        if (text.contains("whatsapp") || text.contains("হোয়াটসঅ্যাপ") || text.contains("হোয়াটসঅ্যাপ")) {
-            return Pair(
-                JarvisAction.OpenApp("WhatsApp", "com.whatsapp"),
-                "হোয়াটসঅ্যাপ ওপেন করছি।"
-            )
-        }
-
-        // Camera
-        if (text.contains("camera") || text.contains("ক্যামেরা") || text.contains("ছবি তোল")) {
-            return Pair(
-                JarvisAction.OpenApp("Camera", null),
-                "ক্যামেরা চালু করছি।"
-            )
-        }
-
-        // Calculator
-        if (text.contains("calculator") || text.contains("ক্যালকুলেটর") || text.contains("হিসাব কর")) {
-            return Pair(
-                JarvisAction.OpenApp("Calculator", "com.google.android.calculator"),
-                "ক্যালকুলেটর ওপেন করছি।"
-            )
-        }
-
-        // Clock / Alarm
-        if (text.contains("alarm") || text.contains("clock") || text.contains("অ্যালার্ম") || text.contains("ঘড়ি")) {
-            return Pair(
-                JarvisAction.OpenApp("Clock", "com.google.android.deskclock"),
-                "ঘড়ি এবং অ্যালার্ম স্ক্রিন ওপেন করছি।"
-            )
-        }
-
-        // Settings
         if (text.contains("wifi") || text.contains("ওয়াইফাই")) {
             return Pair(JarvisAction.OpenSettings("wifi"), "ওয়াইফাই সেটিংস ওপেন করছি।")
         }
@@ -276,47 +258,116 @@ class JarvisActionEngine(private val context: Context) {
         if (text.contains("setting") || text.contains("সেটিংস")) {
             return Pair(JarvisAction.OpenSettings("general"), "সিস্টেম সেটিংস ওপেন করছি।")
         }
-
-        // Phone Dialer
         if (text.contains("dialer") || text.contains("ডায়ালার") || text.contains("কল কর") || text.contains("ফোন কর")) {
             return Pair(JarvisAction.OpenDialer(null), "ফোন ডায়ালার ওপেন করছি।")
         }
-
-        // Device Info / Battery
         if (text.contains("battery") || text.contains("ব্যাটারি") || text.contains("device info") || text.contains("ডিভাইস")) {
             return Pair(JarvisAction.GetDeviceInfo, "আপনার ডিভাইসের বর্তমান তথ্য তুলে ধরছি।")
         }
-
-        // Google Search
         if (text.startsWith("search ") || text.startsWith("খোঁজো ") || text.startsWith("সার্চ ")) {
-            val query = text.removePrefix("search ").removePrefix("খোঁজো ").removePrefix("সার্চ ")
-            return Pair(JarvisAction.WebSearch(query), "\"$query\" লিখে গুগলে সার্চ করছি।")
+            val query = text.removePrefix("search ").removePrefix("খোঁজো ").removePrefix("সার্চ ").trim()
+            if (query.isNotBlank()) return Pair(JarvisAction.WebSearch(query), "\"$query\" লিখে গুগলে সার্চ করছি।")
         }
 
-        // Simple arithmetic offline evaluation
-        val calcMatch = Regex("""(\d+(?:\.\d+)?)\s*([\+\-\*\/])\s*(\d+(?:\.\d+)?)""").find(text)
-        if (calcMatch != null) {
-            val (n1Str, op, n2Str) = calcMatch.destructured
-            val n1 = n1Str.toDoubleOrNull()
-            val n2 = n2Str.toDoubleOrNull()
-            if (n1 != null && n2 != null) {
-                val res = when (op) {
-                    "+" -> n1 + n2
-                    "-" -> n1 - n2
-                    "*" -> n1 * n2
-                    "/" -> if (n2 != 0.0) n1 / n2 else Double.NaN
-                    else -> null
+        val expression = text
+            .removePrefix("calculate ")
+            .removePrefix("ক্যালকুলেট ")
+            .removePrefix("হিসাব কর ")
+            .trim()
+        // Restrict the parser to arithmetic characters and whitespace. This prevents a
+        // conversational sentence containing numbers from being interpreted as a command.
+        if (expression.isNotBlank() && expression.length <= 120 &&
+            expression.any { it in "+-*/()" } && expression.all { it.isDigit() || it in ".,+-*/() \t" }) {
+            val normalized = expression.replace(',', '.')
+            val parseAttempt = runCatching { ArithmeticParser(normalized).parse() }
+            val result = parseAttempt.getOrNull()
+            if (result != null && result.isFinite()) {
+                val clean = if (result % 1.0 == 0.0 && result >= Long.MIN_VALUE && result <= Long.MAX_VALUE) {
+                    result.toLong().toString()
+                } else {
+                    "%.6f".format(Locale.US, result).trimEnd('0').trimEnd('.')
                 }
-                if (res != null) {
-                    val cleanRes = if (res % 1.0 == 0.0) res.toLong().toString() else "%.2f".format(res)
-                    return Pair(
-                        JarvisAction.Calculation("$n1 $op $n2", cleanRes),
-                        "$n1 $op $n2 এর ফলাফল হলো $cleanRes"
-                    )
+                return Pair(JarvisAction.Calculation(normalized, clean), "$normalized এর ফলাফল হলো $clean")
+            }
+            if (parseAttempt.exceptionOrNull()?.message == "Division by zero") {
+                return Pair(JarvisAction.Calculation(normalized, "Undefined"), "শূন্য দিয়ে ভাগ করা সম্ভব নয়।")
+            }
+        }
+        return null
+    }
+
+    /** Small recursive-descent parser: parentheses, unary signs and operator precedence. */
+    private class ArithmeticParser(private val source: String) {
+        private var position = 0
+
+        fun parse(): Double {
+            val value = parseExpression()
+            skipSpaces()
+            require(position == source.length) { "Unexpected character" }
+            return value
+        }
+
+        private fun parseExpression(): Double {
+            var value = parseTerm()
+            while (true) {
+                skipSpaces()
+                value = when {
+                    consume('+') -> value + parseTerm()
+                    consume('-') -> value - parseTerm()
+                    else -> return value
                 }
             }
         }
 
-        return null
+        private fun parseTerm(): Double {
+            var value = parseUnary()
+            while (true) {
+                skipSpaces()
+                value = when {
+                    consume('*') -> value * parseUnary()
+                    consume('/') -> {
+                        val divisor = parseUnary()
+                        require(divisor != 0.0) { "Division by zero" }
+                        value / divisor
+                    }
+                    else -> return value
+                }
+            }
+        }
+
+        private fun parseUnary(): Double {
+            skipSpaces()
+            return when {
+                consume('+') -> parseUnary()
+                consume('-') -> -parseUnary()
+                consume('(') -> parseExpression().also {
+                    skipSpaces()
+                    require(consume(')')) { "Missing closing parenthesis" }
+                }
+                else -> parseNumber()
+            }
+        }
+
+        private fun parseNumber(): Double {
+            skipSpaces()
+            val start = position
+            var decimalSeen = false
+            while (position < source.length) {
+                val char = source[position]
+                if (char.isDigit()) position++
+                else if (char == '.' && !decimalSeen) { decimalSeen = true; position++ }
+                else break
+            }
+            require(position > start) { "Number expected" }
+            return source.substring(start, position).toDouble()
+        }
+
+        private fun consume(char: Char): Boolean {
+            if (position < source.length && source[position] == char) { position++; return true }
+            return false
+        }
+
+        private fun skipSpaces() { while (position < source.length && source[position].isWhitespace()) position++ }
     }
+
 }
