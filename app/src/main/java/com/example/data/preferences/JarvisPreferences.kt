@@ -29,6 +29,8 @@ class JarvisPreferences(private val context: Context) {
         val KEY_REDUCED_MOTION = booleanPreferencesKey("reduced_motion")
         val KEY_WAKE_WORD_ENABLED = booleanPreferencesKey("wake_word_enabled")
         val KEY_WAKE_WORD_SENSITIVITY = floatPreferencesKey("wake_word_sensitivity")
+        val KEY_NOTIFICATION_CAPTURE_ENABLED = booleanPreferencesKey("notification_capture_enabled")
+        val KEY_NOTIFICATION_AI_SUMMARY_CONSENT = booleanPreferencesKey("notification_ai_summary_consent")
     }
 
     val userNameFlow: Flow<String> = context.dataStore.data.map { prefs ->
@@ -143,6 +145,14 @@ class JarvisPreferences(private val context: Context) {
         prefs[KEY_WAKE_WORD_SENSITIVITY] ?: 0.75f
     }
 
+    val notificationCaptureEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_NOTIFICATION_CAPTURE_ENABLED] ?: false
+    }
+
+    val notificationAiSummaryConsentFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_NOTIFICATION_AI_SUMMARY_CONSENT] ?: false
+    }
+
     suspend fun setReducedMotion(reduced: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_REDUCED_MOTION] = reduced
@@ -158,6 +168,18 @@ class JarvisPreferences(private val context: Context) {
     suspend fun setWakeWordSensitivity(sensitivity: Float) {
         context.dataStore.edit { prefs ->
             prefs[KEY_WAKE_WORD_SENSITIVITY] = sensitivity
+        }
+    }
+
+    suspend fun setNotificationCaptureEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_NOTIFICATION_CAPTURE_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setNotificationAiSummaryConsent(consent: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_NOTIFICATION_AI_SUMMARY_CONSENT] = consent
         }
     }
 }
