@@ -24,6 +24,35 @@ class GitHubSkillInstaller(
     private val repository: JarvisRepository
 ) {
 
+    companion object {
+        /**
+         * Keeps only the permissions that are (a) actually requested by the
+         * skill manifest, (b) on the installable allowlist and not on the
+         * high-risk denylist (see [SkillSecurityInspector]), and (c) approved
+         * by the user. Approval matching is case-insensitive; the requested
+         * order is preserved. Fail closed: anything not in all three sets is
+         * dropped, never granted.
+         */
+        fun filterInstallablePermissions(
+            requested: List<String>,
+            approved: List<String>
+        ): List<String> {
+            return requested.filter { permission ->
+                val upper = permission.uppercase()
+                upper in SkillSecurityInspector.INSTALLABLE_PERMISSIONS &&
+                    upper !in SkillSecurityInspector.DISALLOWED_HIGH_RISK_PERMISSIONS &&
+                    approved.any { it.equals(permission, ignoreCase = true) }
+            }
+        }
+
+        /** Serializes tool definitions to the JSON array stored as toolsJson. */
+        fun serializeTools(tools: List<SkillToolDefinition>): String {
+            val array = JSONArray()
+            tools.forEach { array.put(it.toJson()) }
+            return array.toString()
+        }
+    }
+
     /**
      * Curated featured repositories compatible with JARVIS.
      */
@@ -197,8 +226,14 @@ class GitHubSkillInstaller(
     ): Long = withContext(Dispatchers.IO) {
         val manifest = report.skillManifest ?: return@withContext -1L
 
+        // Grant only what the manifest requested, the policy allows, and the
+        // user approved — never store an unfiltered approval verbatim.
+        val grantedPermissions = filterInstallablePermissions(
+            requested = report.requestedPermissions,
+            approved = approvedPermissions
+        )
         val permissionsArray = JSONArray()
-        approvedPermissions.forEach { permissionsArray.put(it) }
+        grantedPermissions.forEach { permissionsArray.put(it) }
 
         val entity = InstalledSkillEntity(
             skillId = manifest.id,
@@ -217,7 +252,7 @@ class GitHubSkillInstaller(
             grantedPermissionsJson = permissionsArray.toString(),
             manifestJson = manifest.toJsonString(),
             systemPromptSnippet = manifest.systemPrompt,
-            toolsJson = "[]",
+            toolsJson = serializeTools(manifest.tools),
             integrityHash = report.integritySha256
         )
 
