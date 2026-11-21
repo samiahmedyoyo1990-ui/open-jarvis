@@ -31,7 +31,7 @@ class SkillsEngine(private val context: Context) {
 
     companion object {
         /**
-         * Parses one asset skill JSON (assets/skills/*.json: id, name, version,
+         * Parses one asset skill JSON (an assets/skills file with id, name, version,
          * author, llmHint, tags) into a [JarvisSkill]. Asset skills are
          * built-in: their id is prefixed with "asset_", their category comes
          * from the first tag, and their author is always "JARVIS Built-in"
