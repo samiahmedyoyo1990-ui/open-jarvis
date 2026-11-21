@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.content.Intent
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +33,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -73,6 +76,9 @@ fun NotificationIntelligenceScreen(
     val isConnected by JarvisNotificationListenerService.isServiceConnected.collectAsStateWithLifecycle()
     val isPermissionGranted = remember { JarvisNotificationListenerService.isNotificationAccessGranted(context) }
 
+    val isCaptureEnabled by viewModel.preferences.notificationCaptureEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
+    val isAiConsentGranted by viewModel.preferences.notificationAiSummaryConsentFlow.collectAsStateWithLifecycle(initialValue = false)
+
     var summaryResult by remember { mutableStateOf<String?>(null) }
     var isSummarizing by remember { mutableStateOf(false) }
 
@@ -95,7 +101,7 @@ fun NotificationIntelligenceScreen(
             ) {
                 IconButton(
                     onClick = onBack,
-                    modifier = Modifier.size(40.dp).testTag("notifs_back_button")
+                    modifier = Modifier.size(48.dp).testTag("notifs_back_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -164,7 +170,11 @@ fun NotificationIntelligenceScreen(
                         OutlinedButton(
                             onClick = {
                                 val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                                context.startActivity(intent)
+                                if (intent.resolveActivity(context.packageManager) != null) {
+                                    context.startActivity(intent)
+                                } else {
+                                    Toast.makeText(context, "এই ডিভাইসে Notification Settings পাওয়া যায়নি।", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             shape = RoundedCornerShape(8.dp)
                         ) {
@@ -176,10 +186,66 @@ fun NotificationIntelligenceScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // AI Summarize Action
+            // Privacy & Opt-In Controls Card
+            CyberCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("নোটিফিকেশন ক্যাপচার (Opt-in)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text("বন্ধ থাকলে কোনো নোটিফিকেশন সংগ্রহ হবে না; ব্যাংক, MFS, OTP ও পাসওয়ার্ড অ্যাপ স্বয়ংক্রিয়ভাবে ব্লক থাকে।", fontSize = 10.sp, color = TextSecondary)
+                    }
+                    Switch(
+                        checked = isCaptureEnabled,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                viewModel.preferences.setNotificationCaptureEnabled(enabled)
+                                if (!enabled) JarvisNotificationListenerService.clearNotifications()
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = JarvisTheme.config.backgroundColor,
+                            checkedTrackColor = JarvisTheme.config.primaryAccent
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("AI সারসংক্ষেপ অনুমতি", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text("শুধুমাত্র এই সুইচ চালু করলেই সক্রিয় AI ইঞ্জিনে সারসংক্ষেপ তৈরি পাঠানো হবে।", fontSize = 10.sp, color = TextSecondary)
+                    }
+                    Switch(
+                        checked = isAiConsentGranted,
+                        onCheckedChange = { consent ->
+                            scope.launch { viewModel.preferences.setNotificationAiSummaryConsent(consent) }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = JarvisTheme.config.backgroundColor,
+                            checkedTrackColor = JarvisTheme.config.primaryAccent
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // AI Summarize Action (Strict Opt-in Consent Gate)
             if (notifications.isNotEmpty()) {
                 Button(
                     onClick = {
+                        if (!isAiConsentGranted) {
+                            Toast.makeText(context, "প্রথমে 'AI সারসংক্ষেপ অনুমতি' চালু করুন।", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
                         scope.launch {
                             isSummarizing = true
                             val combined = notifications.take(5).joinToString("\n") { "${it.appTitle}: ${it.title} - ${it.text}" }
@@ -189,13 +255,22 @@ fun NotificationIntelligenceScreen(
                             isSummarizing = false
                         }
                     },
+                    enabled = !isSummarizing && isAiConsentGranted,
                     colors = ButtonDefaults.buttonColors(containerColor = JarvisTheme.config.primaryAccent),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth().testTag("summarize_notifs_button")
                 ) {
                     Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = JarvisTheme.config.backgroundColor, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isSummarizing) "সারসংক্ষেপ তৈরি হচ্ছে..." else "সব নোটিফিকেশনের AI সারসংক্ষেপ", color = JarvisTheme.config.backgroundColor, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = when {
+                            isSummarizing -> "সারসংক্ষেপ তৈরি হচ্ছে..."
+                            !isAiConsentGranted -> "AI সারসংক্ষেপের জন্য উপরে অনুমতি দিন"
+                            else -> "সব নোটিফিকেশনের AI সারসংক্ষেপ"
+                        },
+                        color = JarvisTheme.config.backgroundColor,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 

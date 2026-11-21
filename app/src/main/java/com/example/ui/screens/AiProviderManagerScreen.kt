@@ -82,6 +82,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ai.model.AiEndpointSecurity
 import com.example.ai.model.AiModelInfo
 import com.example.ai.model.AiProviderConfig
 import com.example.ai.model.AiProviderType
@@ -149,7 +150,7 @@ fun AiProviderManagerScreen(
                     IconButton(
                         onClick = onBack,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(48.dp)
                             .testTag("ai_providers_back_button")
                     ) {
                         Icon(
@@ -465,6 +466,7 @@ fun AiProviderManagerScreen(
                                     color = when (config.type) {
                                         AiProviderType.GOOGLE_GEMINI -> Color(0xFF1A73E8)
                                         AiProviderType.OPEN_ROUTER -> Color(0xFF6B46C1)
+                                        AiProviderType.CUSTOM_OPENAI -> Color(0xFF00BFA5)
                                         AiProviderType.FIREBASE_AI -> Color(0xFFFF9100)
                                     },
                                     modifier = Modifier.size(10.dp)
@@ -541,26 +543,26 @@ fun AiProviderManagerScreen(
                                         editingConfig = config
                                         showEditDialog = true
                                     },
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "Edit",
                                         tint = JarvisTheme.config.primaryAccent,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
 
                                 if (config.type != AiProviderType.FIREBASE_AI && allConfigs.size > 1) {
                                     IconButton(
                                         onClick = { configToDelete = config },
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "Delete",
                                             tint = RedAlert.copy(alpha = 0.8f),
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
@@ -645,10 +647,16 @@ fun AiProviderManagerScreen(
                     // Provider Type Selector
                     Text(text = "প্রোভাইডার টাইপ:", fontSize = 11.sp, color = JarvisTheme.config.textSecondary)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf(AiProviderType.GOOGLE_GEMINI, AiProviderType.OPEN_ROUTER).forEach { type ->
+                        listOf(
+                            AiProviderType.GOOGLE_GEMINI,
+                            AiProviderType.OPEN_ROUTER,
+                            AiProviderType.CUSTOM_OPENAI
+                        ).forEach { type ->
                             val isSelected = currentEditType == type
                             FilterChip(
                                 selected = isSelected,
@@ -727,9 +735,25 @@ fun AiProviderManagerScreen(
                         Text(text = "মডেল নির্বাচন:", fontSize = 11.sp, color = JarvisTheme.config.textSecondary)
                         TextButton(
                             onClick = {
+                                val resolvedUrl = baseUrl.trim().ifBlank { currentEditType.defaultBaseUrl }
+                                if (currentEditType != AiProviderType.FIREBASE_AI &&
+                                    !AiEndpointSecurity.isValidEndpointUrl(resolvedUrl)
+                                ) {
+                                    testResultInDialog = ConnectionTestResult(
+                                        isSuccess = false,
+                                        statusCode = 400,
+                                        message = "অবৈধ Base URL। শুধুমাত্র HTTPS অথবা লোকাল নেটওয়ার্ক (localhost/LAN) অনুমোদিত।"
+                                    )
+                                    return@TextButton
+                                }
                                 isFetchingModels = true
                                 coroutineScope.launch {
-                                    val models = viewModel.fetchModelsForProvider(editingConfig!!.id, inputApiKey)
+                                    val tempConfig = editingConfig!!.copy(
+                                        type = currentEditType,
+                                        baseUrl = resolvedUrl,
+                                        selectedModel = selectedModel.trim().ifBlank { currentEditType.defaultModel }
+                                    )
+                                    val models = viewModel.fetchModelsForConfig(tempConfig, inputApiKey)
                                     fetchedModels = models
                                     isFetchingModels = false
                                     if (models.isNotEmpty()) {
@@ -878,10 +902,21 @@ fun AiProviderManagerScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        val resolvedUrl = baseUrl.trim().ifBlank { currentEditType.defaultBaseUrl }
+                        if (currentEditType != AiProviderType.FIREBASE_AI &&
+                            !AiEndpointSecurity.isValidEndpointUrl(resolvedUrl)
+                        ) {
+                            Toast.makeText(
+                                context,
+                                "অবৈধ Base URL। HTTPS অথবা লোকাল নেটওয়ার্ক ঠিকানা ব্যবহার করুন।",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            return@Button
+                        }
                         val finalConfig = editingConfig!!.copy(
                             type = currentEditType,
                             name = profileName.trim().ifBlank { currentEditType.displayName },
-                            baseUrl = baseUrl.trim().ifBlank { currentEditType.defaultBaseUrl },
+                            baseUrl = resolvedUrl,
                             selectedModel = selectedModel.trim().ifBlank { currentEditType.defaultModel },
                             temperature = temperature
                         )

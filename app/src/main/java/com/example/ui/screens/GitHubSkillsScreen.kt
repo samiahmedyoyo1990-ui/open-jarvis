@@ -688,9 +688,9 @@ private fun InstalledSkillCard(
 
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(48.dp)
             ) {
-                Icon(Icons.Default.Delete, contentDescription = "Uninstall", tint = RedAlert, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Delete, contentDescription = "Uninstall", tint = RedAlert, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -736,8 +736,8 @@ private fun DeveloperWorkspaceView(
                             )
                         }
 
-                        IconButton(onClick = { onDelete(repo.id) }, modifier = Modifier.size(30.dp)) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = RedAlert, modifier = Modifier.size(16.dp))
+                        IconButton(onClick = { onDelete(repo.id) }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = RedAlert, modifier = Modifier.size(18.dp))
                         }
                     }
 
@@ -929,7 +929,9 @@ private fun InspectionAuditModal(
 
                 is InspectionUiState.Success -> {
                     val report = state.report
-                    var approvedPermissions by remember { mutableStateOf(report.requestedPermissions) }
+                    var approvedPermissions by remember(report.repoFullName, report.integritySha256) {
+                        mutableStateOf(emptyList<String>())
+                    }
 
                     Column(
                         modifier = Modifier
@@ -1062,7 +1064,7 @@ private fun InspectionAuditModal(
                                 Text("বাতিল", fontSize = 11.sp)
                             }
 
-                            if (report.isInstallable) {
+                            if (report.isInstallable && report.status != AuditStatus.BLOCKED) {
                                 Button(
                                     onClick = { onInstall(report, approvedPermissions) },
                                     modifier = Modifier.weight(1f),
@@ -1070,7 +1072,7 @@ private fun InspectionAuditModal(
                                 ) {
                                     Text("অনুমোদন ও ইন্সটল", color = Color(0xFF002229), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
-                            } else if (report.isDeveloperSource) {
+                            } else if (report.isDeveloperSource && report.status != AuditStatus.BLOCKED) {
                                 Button(
                                     onClick = { onImportDev(report) },
                                     modifier = Modifier.weight(1f),

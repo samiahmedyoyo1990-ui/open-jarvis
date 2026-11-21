@@ -74,7 +74,7 @@ fun SyncManagerScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
-    var passkey by remember { mutableStateOf("JARVIS-SECURE-KEY") }
+    var passkey by remember { mutableStateOf("") }
     var restorePayload by remember { mutableStateOf("") }
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
@@ -99,7 +99,7 @@ fun SyncManagerScreen(
             ) {
                 IconButton(
                     onClick = onBack,
-                    modifier = Modifier.size(40.dp).testTag("sync_back_button")
+                    modifier = Modifier.size(48.dp).testTag("sync_back_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -167,7 +167,7 @@ fun SyncManagerScreen(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "নোট, টাস্ক ও মেমোরি AES-256 দিয়ে এনক্রিপ্ট হয়। নিরাপত্তার জন্য আপনার ব্যক্তিগত AI API কী কখনোই সিঙ্কে অন্তর্ভুক্ত হয় না।",
+                    text = "নোট, টাস্ক, রুটিন ও মেমোরি PBKDF2 + AES-256-GCM দিয়ে এনক্রিপ্ট হয়। নিরাপত্তার জন্য আপনার ব্যক্তিগত AI API কী কখনোই সিঙ্কে অন্তর্ভুক্ত হয় না।",
                     fontSize = 11.sp,
                     color = TextSecondary,
                     lineHeight = 16.sp
@@ -181,8 +181,10 @@ fun SyncManagerScreen(
                 OutlinedTextField(
                     value = passkey,
                     onValueChange = { passkey = it },
-                    placeholder = { Text("একটি শক্তিশালী পাসকি লিখুন", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("একটি শক্তিশালী পাসকি লিখুন (কমপক্ষে ৬ অক্ষর)", fontSize = 12.sp) },
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("sync_passkey_input"),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = JarvisTheme.config.primaryAccent,
@@ -196,13 +198,22 @@ fun SyncManagerScreen(
 
                 Button(
                     onClick = {
+                        if (passkey.trim().length < 6) {
+                            statusMessage = "নিরাপত্তার জন্য কমপক্ষে ৬ অক্ষরের পাসকি ব্যবহার করুন।"
+                            return@Button
+                        }
                         scope.launch {
-                            val encrypted = syncEngine.generateEncryptedBackup(passkey)
-                            clipboardManager.setText(AnnotatedString(encrypted))
-                            statusMessage = "এনক্রিপ্টেড ব্যাকআপ তৈরি ও ক্লিপবোর্ডে কপি করা হয়েছে!"
-                            Toast.makeText(context, statusMessage, Toast.LENGTH_SHORT).show()
+                            try {
+                                val encrypted = syncEngine.generateEncryptedBackup(passkey.trim())
+                                clipboardManager.setText(AnnotatedString(encrypted))
+                                statusMessage = "AES-GCM এনক্রিপ্টেড ব্যাকআপ তৈরি ও ক্লিপবোর্ডে কপি করা হয়েছে!"
+                                Toast.makeText(context, statusMessage, Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                statusMessage = "ব্যাকআপ ব্যর্থ: ${e.localizedMessage}"
+                            }
                         }
                     },
+                    enabled = passkey.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = JarvisTheme.config.primaryAccent),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth().testTag("export_backup_button")
@@ -236,12 +247,12 @@ fun SyncManagerScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            val res = syncEngine.restoreEncryptedBackup(restorePayload.trim(), passkey)
+                            val res = syncEngine.restoreEncryptedBackup(restorePayload.trim(), passkey.trim())
                             statusMessage = res.message
                             Toast.makeText(context, res.message, Toast.LENGTH_LONG).show()
                         }
                     },
-                    enabled = restorePayload.isNotBlank(),
+                    enabled = restorePayload.isNotBlank() && passkey.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = JarvisTheme.config.cardBg),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth().border(1.dp, JarvisTheme.config.primaryAccent, RoundedCornerShape(10.dp)).testTag("restore_backup_button")
