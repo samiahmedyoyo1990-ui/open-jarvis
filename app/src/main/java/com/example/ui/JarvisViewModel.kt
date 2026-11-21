@@ -19,6 +19,7 @@ import com.example.data.local.entity.TaskEntity
 import com.example.data.preferences.JarvisPreferences
 import com.example.data.repository.JarvisRepository
 import com.example.notifications.ReminderNotificationHelper
+import com.example.notifications.ReminderScheduler
 import com.example.ui.components.AssistantState
 import com.example.voice.JarvisWakeWordService
 import com.example.voice.SpeechRecognizerManager
@@ -137,6 +138,8 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         universalAiEngine.testProviderConnection(providerId, apiKeyOverride)
     suspend fun fetchModelsForProvider(providerId: String, apiKeyOverride: String? = null): List<AiModelInfo> =
         universalAiEngine.fetchModelsForProvider(providerId, apiKeyOverride)
+    suspend fun fetchModelsForConfig(config: AiProviderConfig, apiKeyOverride: String? = null): List<AiModelInfo> =
+        universalAiEngine.fetchModelsForConfig(config, apiKeyOverride)
     fun getSavedApiKey(providerId: String): String? = universalAiEngine.secureStorage.getApiKey(providerId)
     fun hasSavedApiKey(providerId: String): Boolean = universalAiEngine.secureStorage.hasApiKey(providerId)
 
@@ -195,13 +198,22 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     private val _incomingSharedText = MutableStateFlow<String?>(null)
     val incomingSharedText: StateFlow<String?> = _incomingSharedText.asStateFlow()
     fun handleSharedContent(sharedText: String?, sharedUri: Uri?) {
+        handleSharedUris(sharedText, listOfNotNull(sharedUri))
+    }
+
+    fun handleSharedUris(sharedText: String?, sharedUris: List<Uri>) {
         if (!sharedText.isNullOrBlank()) {
             _incomingSharedText.value = sharedText
             processUserQuery("Shared to JARVIS: $sharedText")
-        } else if (sharedUri != null) {
+        }
+        val images = sharedUris.take(10)
+        if (images.isNotEmpty()) {
             viewModelScope.launch {
-                val res = visionAndDocumentEngine.analyzeImage(sharedUri)
-                _lastAiResponse.value = res.description
+                val descriptions = images.mapIndexed { index, uri ->
+                    runCatching { visionAndDocumentEngine.analyzeImage(uri).description }
+                        .getOrElse { error -> "ফাইল ${index + 1} বিশ্লেষণ করা যায়নি: ${error.localizedMessage ?: "অজানা সমস্যা"}" }
+                }
+                _lastAiResponse.value = descriptions.joinToString("\n\n")
             }
         }
     }
@@ -471,6 +483,11 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
 
     fun toggleWakeWord(enabled: Boolean) {
         viewModelScope.launch {
+            if (enabled && context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                preferences.setWakeWordEnabled(false)
+                _lastActionFeedback.value = "ব্যাকগ্রাউন্ডে JARVIS চালু করতে আগে মাইক্রোফোন অনুমতি দিন।"
+                return@launch
+            }
             preferences.setWakeWordEnabled(enabled)
             if (enabled) {
                 JarvisWakeWordService.start(context)
@@ -850,19 +867,27 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     // Tasks
     fun addTask(title: String, priority: String = "Normal", reminderMinutes: Int? = null) {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
             val dueDate = if (reminderMinutes != null && reminderMinutes > 0) {
-                System.currentTimeMillis() + (reminderMinutes * 60 * 1000L)
+                now + (reminderMinutes * 60 * 1000L)
             } else null
 
-            val taskId = repository.addTask(title, dueDate = dueDate, priority = priority, reminderSet = reminderMinutes != null)
+            val taskId = repository.addTask(
+                title = title,
+                dueDate = dueDate,
+                priority = priority,
+                reminderSet = dueDate != null
+            )
             _lastActionFeedback.value = "টাস্ক যোগ করা হয়েছে: $title"
 
             if (dueDate != null) {
-                ReminderNotificationHelper.showReminderNotification(
+                ReminderScheduler.scheduleReminder(
                     context = context,
-                    notificationId = taskId.toInt(),
-                    title = "রিমাইন্ডার সেট করা হয়েছে",
-                    content = "$title - নির্ধারিত সময়ে আপনাকে মনে করিয়ে দেওয়া হবে।"
+                    taskId = taskId,
+                    title = title,
+                    triggerAtMillis = dueDate,
+                    priority = priority,
+                    nowMillis = now
                 )
             }
         }
@@ -870,12 +895,25 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
 
     fun toggleTask(task: TaskEntity) {
         viewModelScope.launch {
-            repository.setTaskCompleted(task.id, !task.isCompleted)
+            val nextCompleted = !task.isCompleted
+            repository.setTaskCompleted(task.id, nextCompleted)
+            if (nextCompleted) {
+                ReminderScheduler.cancelReminder(context, task.id)
+            } else if (task.reminderSet && task.dueDate != null && task.dueDate > System.currentTimeMillis()) {
+                ReminderScheduler.scheduleReminder(
+                    context = context,
+                    taskId = task.id,
+                    title = task.title,
+                    triggerAtMillis = task.dueDate,
+                    priority = task.priority
+                )
+            }
         }
     }
 
     fun deleteTask(task: TaskEntity) {
         viewModelScope.launch {
+            ReminderScheduler.cancelReminder(context, task.id)
             repository.deleteTask(task)
             _lastActionFeedback.value = "টাস্ক মুছে ফেলা হয়েছে।"
         }
