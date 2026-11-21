@@ -16,12 +16,26 @@ class RoutinesEngine(
     private val repository: JarvisRepository,
     private val actionEngine: JarvisActionEngine
 ) {
+    companion object {
+        const val COOLDOWN_MS = 30_000L
+    }
+
     val allRoutines: Flow<List<RoutineEntity>> = repository.allRoutines
 
-    suspend fun checkAndExecuteTrigger(spokenText: String): RoutineExecutionResult? {
+    suspend fun checkAndExecuteTrigger(
+        spokenText: String,
+        nowMillis: Long = System.currentTimeMillis()
+    ): RoutineExecutionResult? {
         val clean = spokenText.trim().lowercase()
-        val all = repository.databaseRoutines()
-        val matched = all.firstOrNull { it.isEnabled && clean.contains(it.triggerValue.lowercase()) } ?: return null
+        if (clean.isBlank()) return null
+
+        val all = repository.getEnabledRoutinesSnapshot()
+        val matched = all.firstOrNull { routine ->
+            routine.isEnabled &&
+                routine.triggerValue.isNotBlank() &&
+                clean.contains(routine.triggerValue.trim().lowercase()) &&
+                (nowMillis - routine.lastExecutedAt) >= COOLDOWN_MS
+        } ?: return null
 
         repository.markRoutineExecuted(matched.id)
 
@@ -57,11 +71,4 @@ class RoutinesEngine(
             }
         }
     }
-}
-
-// Extension to safely fetch snapshot of routines
-private suspend fun JarvisRepository.databaseRoutines(): List<RoutineEntity> {
-    // Return empty fallback or trigger initialization
-    initDefaultRoutinesIfEmpty()
-    return emptyList()
 }
