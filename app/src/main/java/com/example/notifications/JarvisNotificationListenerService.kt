@@ -1,15 +1,20 @@
 package com.example.notifications
 
 import android.app.Notification
-import android.content.ComponentName
 import android.content.Context
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.example.data.preferences.JarvisPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 data class JarvisNotificationItem(
     val key: String,
@@ -24,6 +29,10 @@ data class JarvisNotificationItem(
 class JarvisNotificationListenerService : NotificationListenerService() {
 
     private val TAG = "JarvisNotification"
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var captureEnabled: Boolean = false
 
     companion object {
         private val _notifications = MutableStateFlow<List<JarvisNotificationItem>>(emptyList())
@@ -31,6 +40,62 @@ class JarvisNotificationListenerService : NotificationListenerService() {
 
         private val _isServiceConnected = MutableStateFlow(false)
         val isServiceConnected: StateFlow<Boolean> = _isServiceConnected.asStateFlow()
+
+        private val SENSITIVE_PACKAGE_KEYWORDS = listOf(
+            "bkash",
+            "nagad",
+            "rocket",
+            "upay",
+            "surecash",
+            "cellfin",
+            "dutchbangla",
+            "dbbl",
+            "bracbank",
+            "astha",
+            "citytouch",
+            "thecitybank",
+            "ebl",
+            "skybanking",
+            "islamibank",
+            "primebank",
+            "pubali",
+            "mtb",
+            "bank",
+            "wallet",
+            "paypal",
+            "paytm",
+            "gpay",
+            "phonepe",
+            "authenticator",
+            "authy",
+            "duo",
+            "bitwarden",
+            "1password",
+            "lastpass",
+            "keepass",
+            "dashlane",
+            "proton.pass",
+            "com.google.android.apps.messaging",
+            "com.android.mms",
+            "com.samsung.android.messaging"
+        )
+
+        private val OTP_CONTEXT_REGEX = Regex(
+            """(?i)\b(?:otp|pin|code|passcode|verification|verify|2fa|cvv|টোকেন|ওটিপি|পিন)\b"""
+        )
+        private val DIGITS_CODE_REGEX = Regex("""\b\d{4,8}\b""")
+
+        fun isSensitivePackage(packageName: String): Boolean {
+            val normalized = packageName.trim().lowercase()
+            if (normalized.isBlank()) return true
+            return SENSITIVE_PACKAGE_KEYWORDS.any { normalized.contains(it) }
+        }
+
+        fun sanitizeNotificationText(raw: String): String {
+            if (raw.isBlank()) return raw
+            if (!OTP_CONTEXT_REGEX.containsMatchIn(raw)) return raw
+            return DIGITS_CODE_REGEX.replace(raw, "[REDACTED]")
+        }
 
         fun isNotificationAccessGranted(context: Context): Boolean {
             val enabledListeners = Settings.Secure.getString(
@@ -46,11 +111,33 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         }
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        val prefs = JarvisPreferences(applicationContext)
+        serviceScope.launch {
+            prefs.notificationCaptureEnabledFlow.collect { enabled ->
+                captureEnabled = enabled
+                if (!enabled) {
+                    clearNotifications()
+                } else if (_isServiceConnected.value) {
+                    readActiveNotifications()
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+
     override fun onListenerConnected() {
         super.onListenerConnected()
         _isServiceConnected.value = true
         Log.d(TAG, "Jarvis Notification Listener Connected")
-        readActiveNotifications()
+        if (captureEnabled) {
+            readActiveNotifications()
+        }
     }
 
     override fun onListenerDisconnected() {
@@ -60,7 +147,7 @@ class JarvisNotificationListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        if (sbn == null) return
+        if (sbn == null || !captureEnabled) return
         processNotification(sbn)
     }
 
@@ -70,6 +157,10 @@ class JarvisNotificationListenerService : NotificationListenerService() {
     }
 
     private fun readActiveNotifications() {
+        if (!captureEnabled) {
+            clearNotifications()
+            return
+        }
         try {
             val active = activeNotifications ?: return
             val items = active.mapNotNull { extractNotificationItem(it) }
@@ -80,17 +171,22 @@ class JarvisNotificationListenerService : NotificationListenerService() {
     }
 
     private fun processNotification(sbn: StatusBarNotification) {
+        if (!captureEnabled) return
         val item = extractNotificationItem(sbn) ?: return
         val current = _notifications.value.filter { it.key != sbn.key }
         _notifications.value = (listOf(item) + current).take(30)
     }
 
     private fun extractNotificationItem(sbn: StatusBarNotification): JarvisNotificationItem? {
+        if (isSensitivePackage(sbn.packageName)) return null
         val notification = sbn.notification ?: return null
         val extras = notification.extras ?: return null
 
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
+        val rawTitle = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+        val rawText = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
+
+        val title = sanitizeNotificationText(rawTitle)
+        val text = sanitizeNotificationText(rawText)
 
         if (title.isBlank() && text.isBlank()) return null
         // Skip ongoing persistent notifications
@@ -105,10 +201,9 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         }
 
         val isVip = sbn.packageName.contains("whatsapp") ||
-                sbn.packageName.contains("messaging") ||
-                sbn.packageName.contains("gm") ||
-                title.contains("urgent", ignoreCase = true) ||
-                title.contains("জরুরি")
+            sbn.packageName.contains("gm") ||
+            title.contains("urgent", ignoreCase = true) ||
+            title.contains("জরুরি")
 
         return JarvisNotificationItem(
             key = sbn.key,
