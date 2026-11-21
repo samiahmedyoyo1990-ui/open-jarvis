@@ -134,6 +134,11 @@ class JarvisWakeWordService : Service() {
     }
 
     private fun startWakeWordLoop() {
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Microphone permission was revoked; stopping wake-word listener")
+            stopSelf()
+            return
+        }
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             Log.e(TAG, "SpeechRecognizer is not available on this device")
             stopSelf()
@@ -221,23 +226,6 @@ class JarvisWakeWordService : Service() {
         return false
     }
 
-    private fun isWakeWordMatch(text: String): Boolean {
-        val targets = listOf(
-            "hey jarvis",
-            "jarvis",
-            "হেই জার্ভিস",
-            "হে জার্ভিস",
-            "জার্ভিস",
-            "জারভিস",
-            "হাই জার্ভিস",
-            "hi jarvis",
-            "ok jarvis",
-            "hello jarvis",
-            "হ্যালো জার্ভিস"
-        )
-        return targets.any { text.contains(it) }
-    }
-
     private fun triggerJarvisActivation() {
         // 1. Dual Haptic Pulse
         try {
@@ -311,7 +299,20 @@ class JarvisWakeWordService : Service() {
         private val _isServiceRunning = MutableStateFlow(false)
         val isServiceRunning: StateFlow<Boolean> = _isServiceRunning.asStateFlow()
 
+        fun isWakeWordMatch(text: String): Boolean {
+            val normalized = text.lowercase(Locale.ROOT).trim()
+            val targets = listOf(
+                "hey jarvis", "jarvis", "হেই জার্ভিস", "হে জার্ভিস", "জার্ভিস",
+                "জারভিস", "হাই জার্ভিস", "hi jarvis", "ok jarvis", "hello jarvis", "হ্যালো জার্ভিস"
+            )
+            return targets.any { normalized.contains(it) }
+        }
+
         fun start(context: Context) {
+            if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Log.w("JarvisWakeWordService", "Microphone permission is not granted; refusing to start listener")
+                return
+            }
             try {
                 val intent = Intent(context, JarvisWakeWordService::class.java)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
