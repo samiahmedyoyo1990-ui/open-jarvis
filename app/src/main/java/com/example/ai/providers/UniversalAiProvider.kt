@@ -22,4 +22,14 @@ interface UniversalAiProvider {
         userName: String,
         apiKey: String
     ): AiAssistantResponse
+
+    suspend fun generateMultimodalResponse(
+        prompt: String,
+        imageBase64: String,
+        mimeType: String,
+        history: List<ConversationEntity>,
+        userName: String,
+        apiKey: String
+    ): AiAssistantResponse
 }
+

@@ -3,11 +3,13 @@ package com.example.ai.providers
 import android.util.Log
 import com.example.ai.AiAssistantResponse
 import com.example.ai.JarvisPromptConstants
+import com.example.ai.model.AiEndpointSecurity
 import com.example.ai.model.AiModelInfo
 import com.example.ai.model.AiProviderConfig
 import com.example.ai.model.AiProviderType
 import com.example.ai.model.ConnectionTestResult
 import com.example.data.local.entity.ConversationEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -29,7 +31,7 @@ class OpenRouterProviderAdapter(
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(25, TimeUnit.SECONDS)
-        .readTimeout(35, TimeUnit.SECONDS)
+        .readTimeout(40, TimeUnit.SECONDS)
         .writeTimeout(25, TimeUnit.SECONDS)
         .build()
 
@@ -46,6 +48,9 @@ class OpenRouterProviderAdapter(
 
         val startTime = System.currentTimeMillis()
         val baseUrl = config.baseUrl.trimEnd('/')
+        if (!AiEndpointSecurity.isValidEndpointUrl(baseUrl)) {
+            return@withContext ConnectionTestResult(false, 400, "অবৈধ OpenRouter Base URL।")
+        }
         val url = "$baseUrl/models"
 
         val request = Request.Builder()
@@ -76,7 +81,7 @@ class OpenRouterProviderAdapter(
                         discoveredModelCount = count
                     )
                 } else {
-                    val errorMsg = parseErrorMessage(response.code, body)
+                    val errorMsg = parseErrorMessage(response.code, body, apiKey)
                     ConnectionTestResult(
                         isSuccess = false,
                         statusCode = response.code,
@@ -85,6 +90,8 @@ class OpenRouterProviderAdapter(
                     )
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: IOException) {
             ConnectionTestResult(
                 isSuccess = false,
@@ -95,7 +102,7 @@ class OpenRouterProviderAdapter(
             ConnectionTestResult(
                 isSuccess = false,
                 statusCode = 0,
-                message = "অনাকাঙ্ক্ষিত ত্রুটি: ${e.localizedMessage}"
+                message = "অনাকাঙ্ক্ষিত ত্রুটি: ${AiEndpointSecurity.redactSecret(e.localizedMessage.orEmpty(), apiKey)}"
             )
         }
     }
@@ -104,6 +111,7 @@ class OpenRouterProviderAdapter(
         if (apiKey.isBlank()) return@withContext defaultModels()
 
         val baseUrl = config.baseUrl.trimEnd('/')
+        if (!AiEndpointSecurity.isValidEndpointUrl(baseUrl)) return@withContext defaultModels()
         val url = "$baseUrl/models"
 
         val request = Request.Builder()
@@ -147,6 +155,8 @@ class OpenRouterProviderAdapter(
 
                 if (list.isNotEmpty()) list else defaultModels()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Failed to fetch remote OpenRouter models, falling back to defaults", e)
             defaultModels()
@@ -158,28 +168,63 @@ class OpenRouterProviderAdapter(
         history: List<ConversationEntity>,
         userName: String,
         apiKey: String
+    ): AiAssistantResponse {
+        return sendChatCompletion("User ($userName): $prompt", history, apiKey)
+    }
+
+    override suspend fun generateMultimodalResponse(
+        prompt: String,
+        imageBase64: String,
+        mimeType: String,
+        history: List<ConversationEntity>,
+        userName: String,
+        apiKey: String
+    ): AiAssistantResponse {
+        val parts = JSONArray().apply {
+            put(JSONObject().apply {
+                put("type", "text")
+                put("text", "User ($userName): $prompt")
+            })
+            put(JSONObject().apply {
+                put("type", "image_url")
+                put("image_url", JSONObject().apply {
+                    put("url", "data:$mimeType;base64,$imageBase64")
+                })
+            })
+        }
+        return sendChatCompletion(parts, history, apiKey)
+    }
+
+    private suspend fun sendChatCompletion(
+        userContent: Any,
+        history: List<ConversationEntity>,
+        apiKey: String
     ): AiAssistantResponse = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
             return@withContext AiAssistantResponse(
-                replyText = "OpenRouter API Key কনফিগার করা নেই। অনুগ্রহ করে সেটিংস -> 'AI Provider Manager' এ গিয়ে আপনার নিজস্ব OpenRouter API Key যুক্ত করুন।"
+                replyText = "OpenRouter API Key কনফিগার করা নেই। অনুগ্রহ করে সেটিংস -> 'AI Provider Manager' এ গিয়ে আপনার নিজস্ব OpenRouter API Key যুক্ত করুন।",
+                isError = true
             )
         }
 
         val baseUrl = config.baseUrl.trimEnd('/')
+        if (!AiEndpointSecurity.isValidEndpointUrl(baseUrl)) {
+            return@withContext AiAssistantResponse(
+                replyText = "অবৈধ OpenRouter Base URL।",
+                isError = true
+            )
+        }
         val url = "$baseUrl/chat/completions"
 
         val payload = JSONObject().apply {
             put("model", config.selectedModel.trim())
 
             val messagesArray = JSONArray()
-
-            // System prompt
             messagesArray.put(JSONObject().apply {
                 put("role", "system")
                 put("content", JarvisPromptConstants.SYSTEM_INSTRUCTION)
             })
 
-            // Multi-turn history
             history.takeLast(6).forEach { msg ->
                 messagesArray.put(JSONObject().apply {
                     put("role", if (msg.isUser) "user" else "assistant")
@@ -187,10 +232,9 @@ class OpenRouterProviderAdapter(
                 })
             }
 
-            // Current prompt
             messagesArray.put(JSONObject().apply {
                 put("role", "user")
-                put("content", "User ($userName): $prompt")
+                put("content", userContent)
             })
 
             put("messages", messagesArray)
@@ -211,40 +255,60 @@ class OpenRouterProviderAdapter(
                 val body = response.body?.string().orEmpty()
 
                 if (!response.isSuccessful) {
-                    val errorText = parseErrorMessage(response.code, body)
-                    return@withContext AiAssistantResponse(replyText = errorText)
+                    val errorText = parseErrorMessage(response.code, body, apiKey)
+                    return@withContext AiAssistantResponse(
+                        replyText = errorText,
+                        isError = true,
+                        isRetryableError = AiEndpointSecurity.isRetryableStatusCode(response.code)
+                    )
                 }
 
                 val json = JSONObject(body)
                 val choices = json.optJSONArray("choices")
                 if (choices == null || choices.length() == 0) {
-                    return@withContext AiAssistantResponse(replyText = "OpenRouter থেকে কোনো উত্তর পাওয়া যায়নি।")
+                    return@withContext AiAssistantResponse(
+                        replyText = "OpenRouter থেকে কোনো উত্তর পাওয়া যায়নি।",
+                        isError = true,
+                        isRetryableError = true
+                    )
                 }
 
                 val firstChoice = choices.getJSONObject(0)
                 val text = firstChoice.optJSONObject("message")?.optString("content")?.trim().orEmpty()
 
                 if (text.isBlank()) {
-                    return@withContext AiAssistantResponse(replyText = "উত্তরটি ফাঁকা এসেছে। অনুগ্রহ করে প্রশ্নটি পুনরায় করুন।")
+                    return@withContext AiAssistantResponse(
+                        replyText = "উত্তরটি ফাঁকা এসেছে। অনুগ্রহ করে প্রশ্নটি পুনরায় করুন।",
+                        isError = true
+                    )
                 }
 
                 JarvisPromptConstants.parseResponseAndAction(text)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: IOException) {
-            AiAssistantResponse(replyText = "নেটওয়ার্ক টাইমআউট বা ইন্টারনেট সংযোগ নেই: ${e.localizedMessage}")
+            AiAssistantResponse(
+                replyText = "নেটওয়ার্ক টাইমআউট বা ইন্টারনেট সংযোগ নেই: ${e.localizedMessage}",
+                isError = true,
+                isRetryableError = true
+            )
         } catch (e: Exception) {
-            AiAssistantResponse(replyText = "OpenRouter প্রসেসিং ত্রুটি: ${e.localizedMessage}")
+            AiAssistantResponse(
+                replyText = "OpenRouter প্রসেসিং ত্রুটি: ${AiEndpointSecurity.redactSecret(e.localizedMessage.orEmpty(), apiKey)}",
+                isError = true
+            )
         }
     }
 
-    private fun parseErrorMessage(statusCode: Int, body: String): String {
-        val serverMessage = try {
+    private fun parseErrorMessage(statusCode: Int, body: String, apiKey: String): String {
+        val rawServerMessage = try {
             val json = JSONObject(body)
             json.optJSONObject("error")?.optString("message")
         } catch (e: Exception) {
             null
         }
-
+        val serverMessage = rawServerMessage?.let { AiEndpointSecurity.redactSecret(it, apiKey) }
         val details = if (!serverMessage.isNullOrBlank()) " ($serverMessage)" else ""
 
         return when (statusCode) {
@@ -266,7 +330,8 @@ class OpenRouterProviderAdapter(
             AiModelInfo("meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B Instruct", "মেটার শক্তিশালী ওপেন ওয়েটস ফ্ল্যাগশিপ মডেল", 131072),
             AiModelInfo("anthropic/claude-3.5-sonnet", "Claude 3.5 Sonnet", "অসাধারণ কোডিং ও স্বাভাবিক কথোপকথন", 200000),
             AiModelInfo("openai/gpt-4o", "OpenAI GPT-4o", "অত্যাধুনিক অমনি মডেল", 128000),
-            AiModelInfo("google/gemini-2.0-flash-exp:free", "Gemini 2.0 Flash (Free)", "OpenRouter ফ্রি টিয়ার ফ্ল্যাশ মডেল", 1048576, isFree = true)
+            AiModelInfo("google/gemini-2.5-flash", "Gemini 2.5 Flash", "দ্রুতগতির মাল্টিমোডাল মডেল", 1048576)
         )
     }
 }
+

@@ -1,5 +1,7 @@
 package com.example.ai.providers
 
+import android.graphics.BitmapFactory
+import android.util.Base64
 import com.example.ai.AiAssistantResponse
 import com.example.ai.JarvisPromptConstants
 import com.example.ai.model.AiModelInfo
@@ -11,6 +13,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.Content
 import com.google.firebase.ai.type.content
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -60,6 +63,8 @@ class FirebaseAiProviderAdapter(
                     message = "Firebase AI রেসপন্স পাওয়া যায়নি।"
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ConnectionTestResult(
                 isSuccess = false,
@@ -101,4 +106,46 @@ class FirebaseAiProviderAdapter(
         val fullText = rawResponse.text?.trim().orEmpty()
         JarvisPromptConstants.parseResponseAndAction(fullText)
     }
+
+    override suspend fun generateMultimodalResponse(
+        prompt: String,
+        imageBase64: String,
+        mimeType: String,
+        history: List<ConversationEntity>,
+        userName: String,
+        apiKey: String
+    ): AiAssistantResponse = withContext(Dispatchers.IO) {
+        val imageBytes = Base64.decode(imageBase64, Base64.NO_WRAP)
+        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            ?: return@withContext AiAssistantResponse(
+                replyText = "ছবির ডেটা ডিকোড করা যায়নি।",
+                isError = true
+            )
+
+        try {
+            val rawResponse = withTimeout(45_000L) {
+                model.generateContent(
+                    content("user") {
+                        image(bitmap)
+                        text("User ($userName): $prompt")
+                    }
+                )
+            }
+            val fullText = rawResponse.text?.trim().orEmpty()
+            if (fullText.isBlank()) {
+                AiAssistantResponse(
+                    replyText = "মডেল থেকে ছবির বিশ্লেষণ পাওয়া যায়নি।",
+                    isError = true,
+                    isRetryableError = true
+                )
+            } else {
+                JarvisPromptConstants.parseResponseAndAction(fullText)
+            }
+        } finally {
+            if (!bitmap.isRecycled) {
+                bitmap.recycle()
+            }
+        }
+    }
 }
+
