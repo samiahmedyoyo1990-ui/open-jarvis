@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 private val Context.skillsDataStore by preferencesDataStore(name = "jarvis_skills_registry")
 
@@ -27,6 +28,43 @@ data class JarvisSkill(
 )
 
 class SkillsEngine(private val context: Context) {
+
+    companion object {
+        /**
+         * Parses one asset skill JSON (assets/skills/*.json: id, name, version,
+         * author, llmHint, tags) into a [JarvisSkill]. Asset skills are
+         * built-in: their id is prefixed with "asset_", their category comes
+         * from the first tag, and their author is always "JARVIS Built-in"
+         * regardless of the file's author field. Returns null for malformed
+         * JSON or a missing id.
+         */
+        fun parseAssetSkillJson(json: String): JarvisSkill? {
+            return try {
+                val obj = JSONObject(json)
+                val id = obj.optString("id", "").trim()
+                if (id.isBlank()) return null
+                val name = obj.optString("name", id)
+                val tags = obj.optJSONArray("tags")
+                val firstTag = if (tags != null && tags.length() > 0) tags.optString(0, "") else ""
+                val category = firstTag.replaceFirstChar {
+                    if (it.isLowerCase()) it.titlecase() else it.toString()
+                }.ifBlank { "General" }
+                JarvisSkill(
+                    id = "asset_$id",
+                    name = name,
+                    banglaName = name,
+                    category = category,
+                    description = obj.optString("llmHint", obj.optString("description", "")),
+                    version = obj.optString("version", "1.0.0"),
+                    author = "JARVIS Built-in",
+                    permissions = emptyList(),
+                    iconName = "Extension"
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
